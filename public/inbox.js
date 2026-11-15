@@ -301,7 +301,6 @@ async function loadFolder(target = folder, offsetPage = page, historyMode, filte
   $("inbox-title").textContent = data.name;
   renderBreadcrumbs(data);
   if (data.folders) renderFolderTree(data);
-  localizeValue($("inbox-limit"), () => translate("单个文件不超过 {limit} MiB", { limit: maxUploadMiB }));
   const grid = $("inbox-entries");
   stopCovers?.();
   grid.replaceChildren(...data.entries.map(item => renderEntry(item, data.entries)));
@@ -313,6 +312,7 @@ async function loadFolder(target = folder, offsetPage = page, historyMode, filte
   $("inbox-next").disabled = !data.hasMore;
   localizeValue($("inbox-page"), () => translate("第 {page} 页", { page: page + 1 }));
   form.hidden = false;
+  $("inbox-folder-actions").hidden = false;
   viewSwitch.hidden = false;
   $("inbox-search").hidden = false;
   $("inbox-list-toolbar").hidden = false;
@@ -355,6 +355,7 @@ function folderError(error) {
   if (error.status === 404) {
     $("inbox-sidebar").hidden = true;
     form.hidden = true;
+    $("inbox-folder-actions").hidden = true;
     viewSwitch.hidden = true;
     $("inbox-search").hidden = true;
     $("inbox-list-toolbar").hidden = true;
@@ -455,10 +456,25 @@ function uploadFiles(files) {
   if (files.length) void uploadItems(files.map(file => ({ file, path: [] })));
 }
 
-submit.addEventListener("click", () => input.click());
+const uploadOptions = $("inbox-upload-options");
+const uploadTrigger = uploadOptions.querySelector("summary");
+function openUploadPicker(picker) {
+  uploadOptions.open = false;
+  uploadTrigger.focus();
+  picker.click();
+}
+document.addEventListener("click", event => {
+  if (!uploadOptions.contains(event.target)) uploadOptions.open = false;
+});
+uploadOptions.addEventListener("keydown", event => {
+  if (event.key !== "Escape" || !uploadOptions.open) return;
+  uploadOptions.open = false;
+  uploadTrigger.focus();
+});
+submit.addEventListener("click", () => openUploadPicker(input));
 input.addEventListener("change", () => uploadFiles(Array.from(input.files)));
 chooseDirectory.hidden = !("webkitdirectory" in directoryInput);
-chooseDirectory.addEventListener("click", () => directoryInput.click());
+chooseDirectory.addEventListener("click", () => openUploadPicker(directoryInput));
 directoryInput.addEventListener("change", () => {
   const items = selectedDirectoryItems(directoryInput.files);
   if (items.length) void uploadItems(items);
@@ -478,7 +494,6 @@ mkdir.addEventListener("click", async () => {
     setUploadBusy(false);
   }
 });
-form.addEventListener("submit", (event) => event.preventDefault());
 document.addEventListener("paste", (event) => {
   if (form.hidden || $("inbox-preview").open) return;
   const files = pastedFiles(event);

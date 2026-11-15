@@ -307,8 +307,8 @@ input::placeholder { color: var(--placeholder); }
   background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 5px; box-shadow: var(--shadow);
 }
 .action-panel button { text-align: left; border: 0; padding: 7px 9px; }
-#upload-options summary { display: grid; place-items: center; width: 42px; height: 42px; padding: 0; }
-#upload-options .action-panel { top: auto; bottom: calc(100% + 5px); width: max-content; }
+.upload-options summary { display: grid; place-items: center; width: 42px; height: 42px; padding: 0; }
+.upload-options .action-panel { top: auto; bottom: calc(100% + 5px); width: max-content; }
 .action-panel .danger { color: var(--danger-text); }
 .action-panel .danger:hover { background: var(--danger-background); }
 :is(#empty, #inbox-empty) {
@@ -347,6 +347,7 @@ input::placeholder { color: var(--placeholder); }
 .inbox-panel { max-width: 980px; margin: 22px auto; padding: clamp(16px, 4vw, 30px); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow); }
 .inbox-panel a { color: var(--accent-strong); }
 #inbox-search { margin: 0; }
+#inbox-folder-actions { justify-content: flex-end; margin-bottom: 14px; }
 .inbox-breadcrumbs { flex: 1 1 160px; min-width: 0; color: var(--muted); font-size: 13px; }
 .inbox-breadcrumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 31px; list-style: none; margin: 0; padding: 0; }
 .inbox-breadcrumbs li { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -356,7 +357,6 @@ input::placeholder { color: var(--placeholder); }
 .inbox-panel :is(a, strong) { overflow-wrap: anywhere; }
 .upload-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding: 13px 16px; border: 1px dashed var(--hover-border); border-radius: 12px; background: var(--list-heading); }
 #inbox-form.inbox-dragging { border-color: var(--accent); outline: 2px solid var(--accent); background: var(--accent-soft); }
-.upload-limit { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
 .upload-note { display: flex; flex: 1 0 100%; align-items: center; gap: 8px; }
 .upload-note textarea {
   flex: 1; min-width: 0; max-height: 96px; resize: vertical; padding: 8px 10px;
