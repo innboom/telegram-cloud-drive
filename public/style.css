@@ -307,6 +307,8 @@ input::placeholder { color: var(--placeholder); }
   background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 5px; box-shadow: var(--shadow);
 }
 .action-panel button { text-align: left; border: 0; padding: 7px 9px; }
+#upload-options summary { display: grid; place-items: center; width: 42px; height: 42px; padding: 0; }
+#upload-options .action-panel { top: auto; bottom: calc(100% + 5px); width: max-content; }
 .action-panel .danger { color: var(--danger-text); }
 .action-panel .danger:hover { background: var(--danger-background); }
 :is(#empty, #inbox-empty) {

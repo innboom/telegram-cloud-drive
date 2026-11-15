@@ -102,7 +102,6 @@ function localizedButton(source, onClick) {
 
 function applyConfig(value) {
   config = value;
-  localizeValue($("upload-limit"), () => translate("单个文件不超过 {limit} MiB", { limit: value.maxUploadMiB }));
   const title = () => value.title === "云盘" ? translate("云盘") : value.title;
   localizeValue($("title"), title);
   $("description").textContent = value.description;
@@ -778,7 +777,7 @@ async function refresh(focus = null) {
     row?.querySelector(".entry-title").focus({ preventScroll: true });
   }
   $("empty").hidden = result.entries.length > 0;
-  localizeValue($("empty-message"), () => query || tag || fileType ? translate("没有符合条件的项目。") : translate("拖放或粘贴文件，或点击「上传文件」。"));
+  localizeValue($("empty-message"), () => query || tag || fileType ? translate("没有符合条件的项目。") : translate("这个文件夹还没有文件。"));
   $("pagination").hidden = !page && !result.hasMore;
   $("previous").disabled = page === 0;
   $("next").disabled = !result.hasMore;
@@ -982,10 +981,16 @@ $("new-folder").addEventListener("click", action(async () => {
 }));
 $("previous").addEventListener("click", action(async () => { page -= 1; await refresh(); }));
 $("next").addEventListener("click", action(async () => { page += 1; await refresh(); }));
-$("choose-files").addEventListener("click", () => $("file-input").click());
+const uploadOptions = $("upload-options");
+function openUploadPicker(input) {
+  uploadOptions.open = false;
+  uploadOptions.querySelector("summary").focus();
+  input.click();
+}
+$("choose-files").addEventListener("click", () => openUploadPicker($("file-input")));
 const directoryInput = $("directory-input");
 $("choose-directory").hidden = !("webkitdirectory" in directoryInput);
-$("choose-directory").addEventListener("click", () => directoryInput.click());
+$("choose-directory").addEventListener("click", () => openUploadPicker(directoryInput));
 directoryInput.addEventListener("change", action(async () => {
   const items = selectedDirectoryItems(directoryInput.files);
   directoryInput.value = "";
