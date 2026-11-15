@@ -1,7 +1,15 @@
 import { isRenderedDocument, isWorkbookPreview, previewType } from "./media-types.js";
+import { localizeDrive, localizeValue, translate } from "./drive-i18n.js";
 
 const status = document.getElementById("status");
 const frame = document.querySelector("iframe");
+localizeDrive();
+const embedded = window.parent !== window;
+const downloadTimeout = AbortSignal.timeout(30000);
+if (embedded) {
+  document.body.classList.add("embedded-preview");
+  localizeValue(status, () => translate("正在加载预览…"));
+}
 
 function decodePlainText(buffer) {
   const bytes = new Uint8Array(buffer);
@@ -43,7 +51,7 @@ async function loadPreview() {
     ? file ? "/api/inbox/" + code + "/" + encodeURIComponent(file) + "/download" : "/api/share/" + code + "/download"
     : "/api/entries/" + id + "/download";
   const options = publicAccess ? { credentials: "omit" } : { headers: { Authorization: "Bearer " + token } };
-  const response = await fetch(path, options);
+  const response = await fetch(path, { ...options, priority: "high", signal: downloadTimeout });
   if (!response.ok) {
     const { error } = await response.json().catch(() => ({}));
     throw new Error(error ?? "无法打开文件，请重试。");
@@ -98,6 +106,7 @@ async function loadPreview() {
     const player = document.createElement(kind);
     player.className = "shared-media-player";
     player.controls = true;
+    player.preload = "auto";
     player.playsInline = true;
     if (kind === "video") player.classList.add("shared-video-full");
     player.setAttribute("aria-label", name);
@@ -132,5 +141,7 @@ async function loadPreview() {
 }
 
 loadPreview().catch((error) => {
-  status.textContent = error.message;
+  localizeValue(status, () => downloadTimeout.aborted && ["TimeoutError", "AbortError"].includes(error.name)
+    ? translate("预览请求超时，请重新打开或下载原文件。")
+    : error.message);
 });

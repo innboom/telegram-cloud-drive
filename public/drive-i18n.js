@@ -1,5 +1,6 @@
 const languages = ["zh", "en", "ko", "ja"];
 const messages = new Map([
+  ["预览请求超时，请重新打开或下载原文件。",["Preview timed out. Reopen it or download the original file.","미리보기 시간이 초과되었습니다. 다시 열거나 원본 파일을 다운로드하세요.","プレビューがタイムアウトしました。開き直すか、元のファイルをダウンロードしてください。"]],
   ["在新标签页查看",["Open in new tab","새 탭에서 보기","新しいタブで表示"]],
   ["上级目录",["Parent folders","상위 폴더","上位フォルダー"]],
   ["输入或粘贴文字",["Type or paste text","텍스트를 입력하거나 붙여넣으세요","テキストを入力または貼り付け"]],
@@ -234,7 +235,7 @@ export function localizeDrive() {
   const picker = document.querySelector("[data-drive-language]");
   function apply(next) {
     language = next;
-    picker.value = language;
+    if (picker) picker.value = language;
     document.documentElement.lang = language === "zh" ? "zh-CN" : language;
     const nodes = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
     while (nodes.nextNode()) {
@@ -243,7 +244,7 @@ export function localizeDrive() {
     }
   }
   apply(language);
-  picker.addEventListener("change", () => {
+  picker?.addEventListener("change", () => {
     apply(picker.value);
     try {
       localStorage.setItem("inbox-language", picker.value);

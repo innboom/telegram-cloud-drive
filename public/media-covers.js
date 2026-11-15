@@ -64,7 +64,7 @@ export function observeCovers(grid, headers) {
 
   async function fill(tile) {
     const type = tile.dataset.coverType;
-    const response = await fetch(tile.dataset.coverSource, { credentials: "omit", headers, signal });
+    const response = await fetch(tile.dataset.coverSource, { credentials: "omit", headers, signal, priority: "low" });
     if (!response.ok) return;
     const cover = await makeCover(await response.blob(), type, signal);
     if (!cover || signal.aborted) return;

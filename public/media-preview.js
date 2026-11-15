@@ -18,7 +18,6 @@ export function createMediaPreview(dialog, { load, download, address, openTab, t
 
   function clear() {
     request?.abort();
-    content.querySelector("audio, video")?.pause();
     content.replaceChildren();
     if (url) URL.revokeObjectURL(url);
     url = undefined;
@@ -45,7 +44,7 @@ export function createMediaPreview(dialog, { load, download, address, openTab, t
       return;
     }
     try {
-      if (isDocumentPreview(type)) {
+      if (isDocumentPreview(type) || /^(audio|video)\//.test(type)) {
         const frame = document.createElement("iframe");
         frame.title = item.name;
         frame.addEventListener("load", () => {
@@ -59,14 +58,9 @@ export function createMediaPreview(dialog, { load, download, address, openTab, t
       }
       const blob = await load(item, type, controller.signal);
       if (controller.signal.aborted || !dialog.open) return;
-      const kind = type.split("/")[0];
-      const media = document.createElement(kind === "image" ? "img" : kind);
-      if (kind === "image") media.alt = item.name;
-      else {
-        media.controls = true;
-        media.playsInline = true;
-      }
-      media.addEventListener(kind === "image" ? "load" : "loadedmetadata", () => {
+      const media = document.createElement("img");
+      media.alt = item.name;
+      media.addEventListener("load", () => {
         if (!controller.signal.aborted) {
           clearLocalizedValue(status);
           status.textContent = "";
@@ -113,7 +107,7 @@ export function createMediaPreview(dialog, { load, download, address, openTab, t
   });
   dialog.addEventListener("close", () => { if (!dialog.open) clear(); });
   document.addEventListener("keydown", (event) => {
-    if (!dialog.open || event.target.closest("audio, video") || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (!dialog.open || event.altKey || event.ctrlKey || event.metaKey) return;
     if (["ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown"].includes(event.key)) {
       event.preventDefault();
       show(index + (["ArrowLeft", "ArrowUp"].includes(event.key) ? -1 : 1));
