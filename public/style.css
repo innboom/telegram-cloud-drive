@@ -346,8 +346,12 @@ input::placeholder { color: var(--placeholder); }
 #share-description { margin-top: 10px; }
 .inbox-panel { max-width: 980px; margin: 22px auto; padding: clamp(16px, 4vw, 30px); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow); }
 .inbox-panel a { color: var(--accent-strong); }
-#inbox-search { margin: 0; }
-#inbox-folder-actions { justify-content: flex-end; margin-bottom: 14px; }
+#inbox-search { margin: 0 0 10px; }
+.inbox-toolbar .inbox-breadcrumbs { flex: 1 1 120px; }
+.inbox-toolbar .sort-control { margin-left: 0; }
+.inbox-toolbar > :is(button, select) { padding: 5px 8px; font-size: 13px; }
+.inbox-toolbar .search-field { flex: 1 1 150px; }
+.inbox-toolbar .search-field input { font-size: 13px; padding-block: 5px; }
 .inbox-breadcrumbs { flex: 1 1 160px; min-width: 0; color: var(--muted); font-size: 13px; }
 .inbox-breadcrumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 31px; list-style: none; margin: 0; padding: 0; }
 .inbox-breadcrumbs li { display: flex; align-items: center; gap: 8px; min-width: 0; }

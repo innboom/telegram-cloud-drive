@@ -30,6 +30,7 @@ let query = "";
 let fileType = "";
 let sort = $("inbox-sort").value;
 let navigating = false;
+let searchTimer;
 let treeSnapshot;
 
 let stopCovers;
@@ -291,9 +292,11 @@ async function loadFolder(target = folder, offsetPage = page, historyMode, filte
     panel.querySelector(".file-scroll").scrollTop = 0;
   }
   ({ query, sort, fileType } = filters);
-  $("inbox-query").value = query;
-  $("inbox-type").value = fileType;
-  $("inbox-sort").value = sort;
+  if (historyMode) {
+    $("inbox-query").value = query;
+    $("inbox-type").value = fileType;
+    $("inbox-sort").value = sort;
+  }
   folder = target;
   page = offsetPage;
   maxUploadMiB = data.maxUploadMiB;
@@ -312,13 +315,11 @@ async function loadFolder(target = folder, offsetPage = page, historyMode, filte
   $("inbox-next").disabled = !data.hasMore;
   localizeValue($("inbox-page"), () => translate("第 {page} 页", { page: page + 1 }));
   form.hidden = false;
-  $("inbox-folder-actions").hidden = false;
-  viewSwitch.hidden = false;
   $("inbox-search").hidden = false;
-  $("inbox-list-toolbar").hidden = false;
 }
 
 async function navigateFolder(target, historyMode) {
+  clearTimeout(searchTimer);
   navigating = true;
   const loading = $("inbox-folder-loading");
   loading.hidden = false;
@@ -355,10 +356,7 @@ function folderError(error) {
   if (error.status === 404) {
     $("inbox-sidebar").hidden = true;
     form.hidden = true;
-    $("inbox-folder-actions").hidden = true;
-    viewSwitch.hidden = true;
     $("inbox-search").hidden = true;
-    $("inbox-list-toolbar").hidden = true;
     stopCovers?.();
     $("inbox-entries").replaceChildren();
     $("inbox-empty").hidden = $("inbox-pagination").hidden = true;
@@ -526,7 +524,8 @@ window.addEventListener("drop", (event) => {
 });
 
 function applyFilters() {
-  if (navigating || submit.disabled) return;
+  clearTimeout(searchTimer);
+  if (navigating || submit.disabled || form.hidden) return;
   loadFolder(folder, 0, undefined, {
     query: $("inbox-query").value.trim(), sort: $("inbox-sort").value, fileType: $("inbox-type").value
   }).catch(folderError);
@@ -536,9 +535,15 @@ $("inbox-search").addEventListener("submit", event => {
   event.preventDefault();
   applyFilters();
 });
+function scheduleSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(applyFilters, 250);
+}
 $("inbox-query").addEventListener("input", event => {
-  if (!event.target.value && query) applyFilters();
+  if (!event.isComposing) scheduleSearch();
 });
+$("inbox-query").addEventListener("compositionstart", () => clearTimeout(searchTimer));
+$("inbox-query").addEventListener("compositionend", scheduleSearch);
 $("inbox-sort").addEventListener("change", applyFilters);
 $("inbox-type").addEventListener("change", applyFilters);
 
