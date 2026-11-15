@@ -1,5 +1,5 @@
 import { isDocumentPreview, previewType } from "./media-types.js";
-import { formatEntryKind, formatEntrySize } from "./entry-format.js";
+import { entryExtension, formatEntryKind, formatEntrySize } from "./entry-format.js";
 import { clearLocalizedValue, localizeValue } from "./drive-i18n.js";
 
 export function createMediaPreview(dialog, { load, download, address, openTab, translate }) {
@@ -30,7 +30,11 @@ export function createMediaPreview(dialog, { load, download, address, openTab, t
     const controller = new AbortController();
     request = controller;
     const { item, type } = items[index];
-    title.textContent = title.title = item.name;
+    const extension = entryExtension(item.name);
+    title.textContent = extension
+      ? item.name.slice(0, -extension.length - 1) + " " + extension.toUpperCase()
+      : item.name;
+    title.title = item.name;
     localizeValue(details, () => [translate(formatEntryKind(item)), Number.isFinite(item.size) ? formatEntrySize(item.size) : ""]
       .filter(Boolean).join(" · "));
     counter.textContent = (index + 1) + " / " + items.length;
