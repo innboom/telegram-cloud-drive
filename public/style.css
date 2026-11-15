@@ -161,8 +161,8 @@ input::placeholder { color: var(--placeholder); }
 .workspace-heading button span { margin-right: 3px; }
 #search { margin-bottom: 10px; }
 #search > :is(button, select, input) { padding: 5px 8px; font-size: 13px; }
-#search .search-field { flex: 0 1 165px; min-width: min(125px, 100%); }
-#search .search-field input { font-size: 13px; padding-block: 5px; }
+:is(#search, #inbox-search) .search-field { flex: 0 1 165px; min-width: min(125px, 100%); }
+:is(#search, #inbox-search) .search-field input { font-size: 13px; padding-block: 5px; }
 .search-field {
   display: flex; align-items: center; gap: 8px; flex: 1 1 200px; min-width: 0;
   padding-left: 12px; color: var(--muted); border: 1px solid var(--border); border-radius: 10px;
@@ -350,9 +350,7 @@ input::placeholder { color: var(--placeholder); }
 .inbox-toolbar .inbox-breadcrumbs { flex: 1 1 120px; }
 .inbox-toolbar > select { padding: 5px 8px; font-size: 13px; }
 button.mkdir-button, #search > .mkdir-button { display: grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; }
-#new-folder { margin-left: auto; }
-.inbox-toolbar .search-field { flex: 1 1 150px; }
-.inbox-toolbar .search-field input { font-size: 13px; padding-block: 5px; }
+.mkdir-button { margin-left: auto; }
 .inbox-breadcrumbs { flex: 1 1 160px; min-width: 0; color: var(--muted); font-size: 13px; }
 .inbox-breadcrumbs ol { display: flex; align-items: center; gap: 4px; min-height: 31px; list-style: none; margin: 0; padding: 0; }
 .inbox-breadcrumbs li { display: flex; align-items: center; gap: 4px; min-width: 0; }
