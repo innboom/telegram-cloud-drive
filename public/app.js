@@ -698,7 +698,7 @@ function renderItem(item, entries) {
     if (extension) {
       const badge = document.createElement("span");
       badge.className = "entry-extension";
-      badge.textContent = badge.title = "." + extension.toLowerCase();
+      badge.textContent = badge.title = extension.toUpperCase();
       actions.append(badge);
     }
     actions.append(localizedButton("下载", () => download(item)));
