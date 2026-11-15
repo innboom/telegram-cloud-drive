@@ -193,11 +193,29 @@ function renderBreadcrumbs(data) {
     link.href = folderAddress(id === data.rootId ? null : id);
     link.dataset.folderLink = "";
     link.textContent = item.name;
+    link.title = item.name;
     crumb.append(link);
     ancestors.push(crumb);
     if (id === data.rootId) break;
   }
-  path.replaceChildren(...ancestors.reverse(), current);
+  ancestors.reverse();
+  if (ancestors.length < 3) {
+    path.replaceChildren(...ancestors, current);
+    return;
+  }
+
+  const collapsed = document.createElement("li");
+  const menu = document.createElement("details");
+  menu.className = "inbox-path-menu";
+  const trigger = document.createElement("summary");
+  trigger.textContent = "…";
+  localizeValue(trigger, () => translate("上级目录"), "@aria-label");
+  const links = document.createElement("div");
+  links.className = "action-panel";
+  links.append(...ancestors.slice(1).map(crumb => crumb.firstElementChild));
+  menu.append(trigger, links);
+  collapsed.append(menu);
+  path.replaceChildren(ancestors[0], collapsed, current);
 }
 
 function renderFolderTree(data) {
@@ -302,6 +320,7 @@ async function loadFolder(target = folder, offsetPage = page, historyMode, filte
   maxUploadMiB = data.maxUploadMiB;
   document.title = data.name;
   $("inbox-title").textContent = data.name;
+  $("inbox-title").title = data.name;
   renderBreadcrumbs(data);
   if (data.folders) renderFolderTree(data);
   const grid = $("inbox-entries");
@@ -463,6 +482,14 @@ function openUploadPicker(picker) {
 }
 document.addEventListener("click", event => {
   if (!uploadOptions.contains(event.target)) uploadOptions.open = false;
+  const pathMenu = $("inbox-path").querySelector("details[open]");
+  if (pathMenu && (!pathMenu.contains(event.target) || event.target.closest("a"))) pathMenu.open = false;
+});
+$("inbox-path").addEventListener("keydown", event => {
+  const menu = event.target.closest(".inbox-path-menu[open]");
+  if (!menu || event.key !== "Escape") return;
+  menu.open = false;
+  menu.querySelector("summary").focus();
 });
 uploadOptions.addEventListener("keydown", event => {
   if (event.key !== "Escape" || !uploadOptions.open) return;

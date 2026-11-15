@@ -353,11 +353,20 @@ input::placeholder { color: var(--placeholder); }
 .inbox-toolbar .search-field { flex: 1 1 150px; }
 .inbox-toolbar .search-field input { font-size: 13px; padding-block: 5px; }
 .inbox-breadcrumbs { flex: 1 1 160px; min-width: 0; color: var(--muted); font-size: 13px; }
-.inbox-breadcrumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 31px; list-style: none; margin: 0; padding: 0; }
-.inbox-breadcrumbs li { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.inbox-breadcrumbs li + li::before { content: "/"; color: var(--muted); }
-.inbox-breadcrumbs :is(a, h1) { padding: 4px 7px; color: var(--accent-strong); font-size: inherit; font-weight: 650; text-decoration: none; overflow-wrap: anywhere; }
+.inbox-breadcrumbs ol { display: flex; align-items: center; gap: 4px; min-height: 31px; list-style: none; margin: 0; padding: 0; }
+.inbox-breadcrumbs li { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.inbox-breadcrumbs li:has(.inbox-path-menu) { flex: none; }
+.inbox-breadcrumbs li + li::before { content: "/"; flex: none; color: var(--muted); }
+.inbox-breadcrumbs :is(a, h1, summary) { padding: 4px; color: var(--accent-strong); font-size: inherit; font-weight: 650; text-decoration: none; }
+.inbox-breadcrumbs li > :is(a, h1) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inbox-breadcrumbs a:hover { background: var(--row-hover); border-radius: 6px; }
+.inbox-path-menu { position: relative; }
+.inbox-path-menu summary { list-style: none; border-radius: 6px; }
+.inbox-path-menu summary::-webkit-details-marker { display: none; }
+.inbox-path-menu .action-panel {
+  left: 0; right: auto; width: max-content; max-width: min(240px, 55vw); max-height: 50dvh; overflow: auto; z-index: 3;
+}
+.inbox-path-menu .action-panel a { overflow-wrap: anywhere; }
 .inbox-panel :is(a, strong) { overflow-wrap: anywhere; }
 .upload-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding: 13px 16px; border: 1px dashed var(--hover-border); border-radius: 12px; background: var(--list-heading); }
 #inbox-form.inbox-dragging { border-color: var(--accent); outline: 2px solid var(--accent); background: var(--accent-soft); }
