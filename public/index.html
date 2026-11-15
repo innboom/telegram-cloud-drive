@@ -53,17 +53,7 @@
       <div id="file-view" class="workspace">
         <div class="toolbar workspace-heading">
           <h2>文件</h2>
-          <div class="row">
-            <button id="batch-toggle" type="button" aria-pressed="false">批量操作</button>
-            <button id="new-folder"><span aria-hidden="true">＋</span> 新建目录</button>
-            <button id="choose-directory" type="button">上传文件夹</button>
-            <button id="choose-files" class="primary"><span aria-hidden="true">↑</span> 上传文件</button>
-          </div>
-          <input id="file-input" type="file" multiple hidden>
-          <input id="directory-input" type="file" webkitdirectory multiple hidden>
-        </div>
-        <div id="upload-progress" class="upload-progress" hidden>
-          <span></span><progress max="100" aria-label="文件上传进度"></progress>
+          <button id="batch-toggle" type="button" aria-pressed="false">批量操作</button>
         </div>
         <form id="search" class="row">
           <label class="search-field"><span class="icon icon-search" aria-hidden="true"></span><input name="q" type="search" placeholder="搜索文件或目录" aria-label="搜索名称"></label>
@@ -128,6 +118,23 @@
         <div id="pagination" class="row" hidden>
           <button id="previous">上一页</button><span id="page"></span><button id="next">下一页</button>
         </div>
+        <form id="upload-form" class="upload-toolbar">
+          <div>
+            <strong>拖放文件或文件夹，也可粘贴文件上传</strong>
+            <p id="upload-limit" class="upload-limit"></p>
+          </div>
+          <input id="file-input" type="file" multiple hidden>
+          <input id="directory-input" type="file" webkitdirectory multiple hidden>
+          <div class="row">
+            <button id="new-folder" type="button">新建文件夹</button>
+            <button id="choose-directory" type="button">上传文件夹</button>
+            <button id="choose-files" class="primary" type="button">上传文件</button>
+          </div>
+          <div class="upload-note">
+            <textarea id="upload-note" rows="2" placeholder="输入或粘贴文字" aria-label="输入或粘贴文字"></textarea>
+            <button id="send-note" class="primary" type="submit" disabled>发送</button>
+          </div>
+        </form>
       </div>
       <section id="links-view" class="workspace" aria-labelledby="links-title" hidden>
         <div class="toolbar workspace-heading">
@@ -144,6 +151,9 @@
         <div class="notifications-heading">
           <a class="github-project" href="https://github.com/innboom/telegram-cloud-drive" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 查看项目" title="在 GitHub 查看项目"></a>
           <h2 id="notifications-title">通知</h2>
+        </div>
+        <div id="upload-progress" class="upload-progress" hidden>
+          <span></span><progress max="100" aria-label="文件上传进度"></progress>
         </div>
         <ol id="notices" aria-live="polite"></ol>
         <p class="no-notices">暂无通知</p>

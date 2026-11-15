@@ -8,6 +8,9 @@ import { bindViewSwitch } from "./view-switch.js";
 import { droppedItems, pastedFiles, selectedDirectoryItems, showUploadProgress, uploadDirectories, uploadFile } from "./uploads.js";
 
 const $ = (id) => document.getElementById(id);
+const uploadForm = $("upload-form");
+const uploadNote = $("upload-note");
+const sendNote = $("send-note");
 localizeDrive();
 const MiB = 1024 * 1024;
 const pageSize = 50;
@@ -99,6 +102,7 @@ function localizedButton(source, onClick) {
 
 function applyConfig(value) {
   config = value;
+  localizeValue($("upload-limit"), () => translate("单个文件不超过 {limit} MiB", { limit: value.maxUploadMiB }));
   const title = () => value.title === "云盘" ? translate("云盘") : value.title;
   localizeValue($("title"), title);
   $("description").textContent = value.description;
@@ -785,14 +789,24 @@ function upload(files) {
   if (files.length) return uploadItems(files.map(file => ({ file, path: [] })));
 }
 
+function updateSendNote() {
+  sendNote.disabled = uploading || !uploadNote.value.trim();
+}
+
+function setUploadBusy(busy) {
+  uploading = busy;
+  $("choose-files").disabled = $("choose-directory").disabled = busy;
+  uploadNote.readOnly = busy;
+  updateSendNote();
+}
+
 async function uploadItems(items, parent = currentFolder()) {
   if (!token) return;
   if (uploading) {
     notice(translate("正在上传其他文件，请等待当前批次完成。"));
     return;
   }
-  uploading = true;
-  $("choose-files").disabled = $("choose-directory").disabled = true;
+  setUploadBusy(true);
   const failures = [];
   let completed = 0;
   let created = 0;
@@ -828,17 +842,33 @@ async function uploadItems(items, parent = currentFolder()) {
         if (!token) throw error;
       }
     }
-    if (created) await loadFolderTree();
-    if (completed || created) await refresh();
     const summary = [translate("已上传 {done}/{total} 个文件", { done: completed, total })];
     if (created) summary.push(translate("已创建 {count} 个文件夹", { count: created }));
     notice([...summary, ...failures].join("\n"), failures.length > 0);
+    try {
+      if (created) await loadFolderTree();
+      if (completed || created) await refresh();
+    } catch (error) {
+      notice(error.message, true);
+    }
+    return completed;
   } finally {
     progress.hidden = true;
-    uploading = false;
-    $("choose-files").disabled = $("choose-directory").disabled = false;
+    setUploadBusy(false);
   }
 }
+
+uploadNote.addEventListener("input", updateSendNote);
+uploadForm.addEventListener("submit", action(async event => {
+  event.preventDefault();
+  if (sendNote.disabled) return;
+  const timestamp = new Date().toISOString().replaceAll(":", "-");
+  const file = new File([uploadNote.value], timestamp + ".txt", { type: "text/plain" });
+  if (await upload([file])) {
+    uploadNote.value = "";
+    updateSendNote();
+  }
+}));
 
 $("batch-toggle").addEventListener("click", () => {
   const enabled = $("batch-toolbar").hidden;
@@ -981,7 +1011,8 @@ $("manager").addEventListener("dragover", (event) => {
   if (draggedItem || !event.dataTransfer.types.includes("Files")) return;
   event.preventDefault();
   event.dataTransfer.dropEffect = uploading ? "none" : "copy";
-  showUploadTarget(uploading ? undefined : folderUnderPointer(event) ?? $("drop-zone"));
+  const target = folderUnderPointer(event) ?? event.target.closest("#upload-form") ?? $("drop-zone");
+  showUploadTarget(uploading ? undefined : target);
 });
 $("manager").addEventListener("dragleave", (event) => {
   if (!$("manager").contains(event.relatedTarget)) showUploadTarget(undefined);

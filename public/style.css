@@ -323,7 +323,8 @@ input::placeholder { color: var(--placeholder); }
 .github-project:hover, .github-project:focus-visible { background: var(--row-hover); color: var(--text); }
 .github-project::before { content: ""; width: 16px; height: 16px; background: currentColor; mask: url("/github-mark.svg") center / contain no-repeat; }
 #notices { display: grid; gap: 8px; max-height: 60dvh; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
-#notices:not(:empty) + .no-notices { display: none; }
+#notices:not(:empty) + .no-notices,
+.notifications:has(#upload-progress:not([hidden])) .no-notices { display: none; }
 #notices:empty { display: none; }
 .no-notices { font-size: 13px; }
 .upload-progress { display: grid; gap: 6px; margin: 12px 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
@@ -351,11 +352,11 @@ input::placeholder { color: var(--placeholder); }
 .inbox-breadcrumbs :is(a, h1) { padding: 4px 7px; color: var(--accent-strong); font-size: inherit; font-weight: 650; text-decoration: none; overflow-wrap: anywhere; }
 .inbox-breadcrumbs a:hover { background: var(--row-hover); border-radius: 6px; }
 .inbox-panel :is(a, strong) { overflow-wrap: anywhere; }
-#inbox-form { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding: 13px 16px; border: 1px dashed var(--hover-border); border-radius: 12px; background: var(--list-heading); }
+.upload-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding: 13px 16px; border: 1px dashed var(--hover-border); border-radius: 12px; background: var(--list-heading); }
 #inbox-form.inbox-dragging { border-color: var(--accent); outline: 2px solid var(--accent); background: var(--accent-soft); }
-#inbox-limit { margin-top: 3px; font-size: 13px; }
-.inbox-note { display: flex; flex: 1 0 100%; align-items: center; gap: 8px; }
-.inbox-note textarea {
+.upload-limit { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+.upload-note { display: flex; flex: 1 0 100%; align-items: center; gap: 8px; }
+.upload-note textarea {
   flex: 1; min-width: 0; max-height: 96px; resize: vertical; padding: 8px 10px;
   border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
   color: var(--text); font: inherit;
