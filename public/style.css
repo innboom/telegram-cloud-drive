@@ -348,8 +348,8 @@ input::placeholder { color: var(--placeholder); }
 .inbox-panel a { color: var(--accent-strong); }
 #inbox-search { margin: 0 0 10px; }
 .inbox-toolbar .inbox-breadcrumbs { flex: 1 1 120px; }
-.inbox-toolbar .sort-control { margin-left: 0; }
-.inbox-toolbar > :is(button, select) { padding: 5px 8px; font-size: 13px; }
+.inbox-toolbar > select { padding: 5px 8px; font-size: 13px; }
+#inbox-mkdir { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; }
 .inbox-toolbar .search-field { flex: 1 1 150px; }
 .inbox-toolbar .search-field input { font-size: 13px; padding-block: 5px; }
 .inbox-breadcrumbs { flex: 1 1 160px; min-width: 0; color: var(--muted); font-size: 13px; }
