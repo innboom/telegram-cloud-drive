@@ -1,5 +1,7 @@
 const languages = ["zh", "en", "ko", "ja"];
 const messages = new Map([
+  ["输入或粘贴文字",["Type or paste text","텍스트를 입력하거나 붙여넣으세요","テキストを入力または貼り付け"]],
+  ["发送",["Send","보내기","送信"]],
   ["云盘",["Drive","클라우드 드라이브","クラウドドライブ"]],
   ["公开文件夹",["Shared folder","공유 폴더","共有フォルダー"]],
   ["文件结构",["Folder structure","폴더 구조","フォルダー構成"]],

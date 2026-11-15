@@ -12,6 +12,8 @@ localizeDrive();
 const code = location.pathname.match(/^\/s\/([a-zA-Z0-9_-]{12})$/)?.[1];
 let folder = new URLSearchParams(location.search).get("folder");
 const form = $("inbox-form");
+const note = $("inbox-note");
+const sendNote = $("inbox-send-note");
 const panel = $("inbox-panel");
 const input = $("inbox-files");
 const submit = $("inbox-submit");
@@ -373,6 +375,12 @@ async function createFolder(name, target = folder) {
 
 function setUploadBusy(busy) {
   input.disabled = directoryInput.disabled = submit.disabled = chooseDirectory.disabled = mkdir.disabled = busy;
+  note.readOnly = busy;
+  updateSendNote();
+}
+
+function updateSendNote() {
+  sendNote.disabled = submit.disabled || !note.value.trim();
 }
 
 async function uploadItems(items) {
@@ -428,7 +436,20 @@ async function uploadItems(items) {
     progress.hidden = true;
     setUploadBusy(false);
   }
+  return completed;
 }
+
+note.addEventListener("input", updateSendNote);
+form.addEventListener("submit", async event => {
+  event.preventDefault();
+  if (sendNote.disabled || form.hidden || navigating) return;
+  const timestamp = new Date().toISOString().replaceAll(":", "-");
+  const file = new File([note.value], timestamp + ".txt", { type: "text/plain" });
+  if (await uploadItems([{ file, path: [] }])) {
+    note.value = "";
+    updateSendNote();
+  }
+});
 
 function uploadFiles(files) {
   if (files.length) void uploadItems(files.map(file => ({ file, path: [] })));

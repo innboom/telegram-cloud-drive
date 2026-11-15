@@ -34,19 +34,6 @@
       <div id="inbox-folder-loading" class="inbox-folder-loading" role="status" hidden>
         <span>正在打开文件夹…</span>
       </div>
-      <form id="inbox-form" hidden>
-        <div>
-          <strong>拖放文件或文件夹，也可粘贴文件上传</strong>
-          <p id="inbox-limit"></p>
-        </div>
-        <input id="inbox-files" type="file" multiple hidden>
-        <input id="inbox-directory" type="file" webkitdirectory multiple hidden>
-        <div class="row">
-          <button id="inbox-mkdir" type="button">新建文件夹</button>
-          <button id="inbox-choose-directory" type="button">上传文件夹</button>
-          <button id="inbox-submit" class="primary" type="button">上传文件</button>
-        </div>
-      </form>
       <form id="inbox-search" class="row" role="search" hidden>
         <label class="search-field"><span class="icon icon-search" aria-hidden="true"></span><input id="inbox-query" type="search" placeholder="搜索当前目录" aria-label="搜索当前目录" maxlength="120"></label>
           <select id="inbox-type" name="type" aria-label="文件类型">
@@ -97,6 +84,23 @@
       <div id="inbox-pagination" class="row" hidden>
         <button id="inbox-previous">上一页</button><span id="inbox-page"></span><button id="inbox-next">下一页</button>
       </div>
+      <form id="inbox-form" hidden>
+        <div>
+          <strong>拖放文件或文件夹，也可粘贴文件上传</strong>
+          <p id="inbox-limit"></p>
+        </div>
+        <input id="inbox-files" type="file" multiple hidden>
+        <input id="inbox-directory" type="file" webkitdirectory multiple hidden>
+        <div class="row">
+          <button id="inbox-mkdir" type="button">新建文件夹</button>
+          <button id="inbox-choose-directory" type="button">上传文件夹</button>
+          <button id="inbox-submit" class="primary" type="button">上传文件</button>
+        </div>
+        <div class="inbox-note">
+          <textarea id="inbox-note" rows="2" placeholder="输入或粘贴文字" aria-label="输入或粘贴文字"></textarea>
+          <button id="inbox-send-note" class="primary" type="submit" disabled>发送</button>
+        </div>
+      </form>
     </section>
     <aside class="notifications inbox-notifications" aria-labelledby="inbox-notice-title">
       <div class="notifications-heading">
