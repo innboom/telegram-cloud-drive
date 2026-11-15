@@ -1,5 +1,6 @@
 const languages = ["zh", "en", "ko", "ja"];
 const messages = new Map([
+  ["在新标签页查看",["Open in new tab","새 탭에서 보기","新しいタブで表示"]],
   ["上级目录",["Parent folders","상위 폴더","上位フォルダー"]],
   ["输入或粘贴文字",["Type or paste text","텍스트를 입력하거나 붙여넣으세요","テキストを入力または貼り付け"]],
   ["发送",["Send","보내기","送信"]],

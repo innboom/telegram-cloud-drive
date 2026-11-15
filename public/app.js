@@ -1,5 +1,5 @@
 import { createMediaPreview } from "./media-preview.js";
-import { isDocumentPreview, previewType } from "./media-types.js";
+import { previewType } from "./media-types.js";
 import { observeCovers } from "./media-covers.js";
 import { fileIcon } from "./file-icons.js";
 import { language, localizeDrive, localizeValue, translate } from "./drive-i18n.js";
@@ -361,30 +361,37 @@ async function download(item) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function openDocument(item, type) {
-  const tab = window.open("about:blank", "_blank");
-  if (!tab) throw new Error(translate("浏览器拦截了新标签页，请允许弹出窗口后重试。"));
-  tab.opener = null;
+function previewAddress(item) {
   if (item.share_code && !shareExpired(item)) {
-    tab.location.replace(shareAddress(item));
-    return;
+    return shareAddress(item);
   }
   const sharedFolder = folderPath(item.parent_id).findLast((folder) => folder.share_code && !shareExpired(folder));
   if (sharedFolder) {
     const url = new URL(shareAddress(sharedFolder));
     url.searchParams.set("file", item.id);
-    tab.location.replace(url);
-    return;
+    return url.href;
   }
-  tab.sessionStorage.setItem("cloud-drive-token", token);
   const url = new URL("/html-preview", location.origin);
   url.searchParams.set("id", item.id);
-  if (type === "application/pdf") url.searchParams.set("type", "pdf");
-  tab.location.replace(url);
+  return url.href;
 }
 
-const preview = createMediaPreview($("preview-dialog"), (item, type, signal) =>
-  api(itemPath(item) + (type.startsWith("image/") ? "/preview" : "/download"), { signal }, "blob"), download, translate);
+function openPreviewTab(item) {
+  const address = previewAddress(item);
+  const tab = window.open("about:blank", "_blank");
+  if (!tab) throw new Error(translate("浏览器拦截了新标签页，请允许弹出窗口后重试。"));
+  tab.opener = null;
+  if (new URL(address).pathname === "/html-preview") tab.sessionStorage.setItem("cloud-drive-token", token);
+  tab.location.replace(address);
+}
+
+const preview = createMediaPreview($("preview-dialog"), {
+  load: (item, type, signal) => api(itemPath(item) + (type.startsWith("image/") ? "/preview" : "/download"), { signal }, "blob"),
+  download,
+  address: previewAddress,
+  openTab: openPreviewTab,
+  translate
+});
 
 function shareExpired(item) {
   return !!item.share_expires_at && Date.parse(item.share_expires_at) <= Date.now();
@@ -586,9 +593,7 @@ async function runBatch(items, label, operation) {
 function renderItem(item, entries) {
   const folder = item.kind === "folder";
   const type = previewType(item);
-  const openPreview = isDocumentPreview(type)
-    ? () => openDocument(item, type)
-    : type ? () => preview(item, entries) : null;
+  const openPreview = () => preview(item, entries);
   const li = document.createElement("li");
   const check = document.createElement("input");
   check.type = "checkbox";
@@ -640,7 +645,7 @@ function renderItem(item, entries) {
   }
   const name = document.createElement("div");
   name.className = "entry-name";
-  const open = button(item.name, folder ? () => openFolder(item) : openPreview ?? (() => download(item)));
+  const open = button(item.name, folder ? () => openFolder(item) : openPreview);
   open.className = "entry-title";
   open.title = item.name;
   const titleText = document.createElement("span");
@@ -697,7 +702,7 @@ function renderItem(item, entries) {
       actions.append(badge);
     }
     actions.append(localizedButton("下载", () => download(item)));
-    if (openPreview) menu.append(localizedButton("预览", openPreview));
+    menu.append(localizedButton("预览", openPreview));
   }
   if (item.share_code) {
     if (!shareExpired(item)) menu.append(localizedButton("复制链接", () => copyShare(item)));
@@ -723,13 +728,11 @@ function renderItem(item, entries) {
   menu.addEventListener("click", () => { details.open = false; });
   actions.append(details);
   li.append(tile, name, actions);
-  if (folder || openPreview) {
-    li.classList.add("entry-openable");
-    li.addEventListener("click", (event) => {
-      if (event.target === check || open.hidden || open.contains(event.target) || actions.contains(event.target)) return;
-      open.click();
-    });
-  }
+  li.classList.add("entry-openable");
+  li.addEventListener("click", (event) => {
+    if (event.target === check || open.hidden || open.contains(event.target) || actions.contains(event.target)) return;
+    open.click();
+  });
   return li;
 }
 

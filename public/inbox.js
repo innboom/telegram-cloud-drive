@@ -1,5 +1,5 @@
 import { createMediaPreview } from "./media-preview.js";
-import { isDocumentPreview, previewType } from "./media-types.js";
+import { previewType } from "./media-types.js";
 import { observeCovers } from "./media-covers.js";
 import { fileIcon } from "./file-icons.js";
 import { formatEntryDate, formatEntryKind, formatEntrySize } from "./entry-format.js";
@@ -78,21 +78,31 @@ async function downloadFile(item) {
   }
 }
 
-const preview = createMediaPreview($("inbox-preview"), async (item, _type, signal) =>
-  (await request(fileAddress(item), { signal })).blob(), downloadFile, translate);
+function previewAddress(item) {
+  const url = new URL(location.pathname, location.origin);
+  url.searchParams.set("file", item.id);
+  return url.href;
+}
+
+const preview = createMediaPreview($("inbox-preview"), {
+  load: async (item, _type, signal) => (await request(fileAddress(item), { signal })).blob(),
+  download: downloadFile,
+  address: previewAddress,
+  openTab: item => window.open(previewAddress(item), "_blank", "noopener,noreferrer"),
+  translate
+});
 
 function renderEntry(item, entries) {
   const row = document.createElement("li");
   const isFolder = item.kind === "folder";
   const type = previewType(item);
-  const documentPreview = !isFolder && isDocumentPreview(type);
-  const open = document.createElement(!isFolder && !documentPreview && type ? "button" : "a");
+  const open = document.createElement(isFolder ? "a" : "button");
   open.className = "inbox-tile";
   open.title = item.name;
   const icon = document.createElement("span");
   icon.className = "inbox-icon " + (isFolder ? "icon-folder" : "inbox-file-art");
   if (!isFolder) icon.append(fileIcon(item.name, type));
-  if (!isFolder && !documentPreview && (type?.startsWith("image/") || type?.startsWith("video/"))) {
+  if (!isFolder && (type?.startsWith("image/") || type?.startsWith("video/"))) {
     icon.dataset.coverType = type;
     icon.dataset.coverSource = fileAddress(item);
   }
@@ -151,17 +161,9 @@ function renderEntry(item, entries) {
   if (isFolder) {
     open.href = folderAddress(item.id);
     open.dataset.folderLink = "";
-  } else if (documentPreview || type) {
-    if (documentPreview) {
-      const url = new URL(location.pathname, location.origin);
-      url.searchParams.set("file", item.id);
-      open.href = url.href;
-      open.target = "_blank";
-      open.rel = "noopener noreferrer";
-    } else {
-      open.type = "button";
-      open.addEventListener("click", () => preview(item, entries));
-    }
+  } else {
+    open.type = "button";
+    open.addEventListener("click", () => preview(item, entries));
     const download = document.createElement("a");
     download.className = "inbox-download";
     download.href = fileAddress(item);
@@ -169,12 +171,8 @@ function renderEntry(item, entries) {
     localizeValue(download, () => translate("下载"));
     bindDownload(download);
     row.append(download);
-  } else {
-    open.href = fileAddress(item);
-    open.download = item.name;
-    bindDownload(open);
+    row.append(feedback);
   }
-  if (!isFolder) row.append(feedback);
   return row;
 }
 

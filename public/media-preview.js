@@ -2,7 +2,7 @@ import { isDocumentPreview, previewType } from "./media-types.js";
 import { formatEntryKind, formatEntrySize } from "./entry-format.js";
 import { clearLocalizedValue, localizeValue } from "./drive-i18n.js";
 
-export function createMediaPreview(dialog, load, download, translate = text => text) {
+export function createMediaPreview(dialog, { load, download, address, openTab, translate }) {
   const title = dialog.querySelector("h2");
   const details = dialog.querySelector(".media-details");
   const counter = dialog.querySelector(".media-position");
@@ -10,6 +10,7 @@ export function createMediaPreview(dialog, load, download, translate = text => t
   const content = dialog.querySelector("#preview-content");
   const previous = dialog.querySelector("[data-previous]");
   const next = dialog.querySelector("[data-next]");
+  const openFull = dialog.querySelector("[data-preview-full]");
   let items = [];
   let index = 0;
   let request;
@@ -36,9 +37,26 @@ export function createMediaPreview(dialog, load, download, translate = text => t
     counter.textContent = (index + 1) + " / " + items.length;
     previous.disabled = index === 0;
     next.disabled = index === items.length - 1;
+    openFull.hidden = !type;
     localizeValue(status, () => translate("正在加载预览…"));
     if (!dialog.open) dialog.showModal();
+    if (!type) {
+      localizeValue(status, () => translate("浏览器无法预览此文件，请下载后打开。"));
+      return;
+    }
     try {
+      if (isDocumentPreview(type)) {
+        const frame = document.createElement("iframe");
+        frame.title = item.name;
+        frame.addEventListener("load", () => {
+          if (controller.signal.aborted) return;
+          clearLocalizedValue(status);
+          status.textContent = "";
+        });
+        frame.src = address(item);
+        content.append(frame);
+        return;
+      }
       const blob = await load(item, type, controller.signal);
       if (controller.signal.aborted || !dialog.open) return;
       const kind = type.split("/")[0];
@@ -71,6 +89,16 @@ export function createMediaPreview(dialog, load, download, translate = text => t
   previous.addEventListener("click", () => show(index - 1));
   next.addEventListener("click", () => show(index + 1));
   dialog.querySelector("[data-preview-close]").addEventListener("click", () => dialog.close());
+  openFull.addEventListener("click", () => {
+    const { item, type } = items[index];
+    if (!type) return;
+    try {
+      openTab(item);
+    } catch (error) {
+      clearLocalizedValue(status);
+      status.textContent = error.message;
+    }
+  });
   dialog.querySelector("[data-preview-download]").addEventListener("click", async () => {
     const selected = items[index];
     const current = request;
@@ -93,8 +121,7 @@ export function createMediaPreview(dialog, load, download, translate = text => t
   });
 
   return (selected, entries) => {
-    items = entries.map(item => ({ item, type: previewType(item) }))
-      .filter(({ item, type }) => item.kind !== "folder" && type && !isDocumentPreview(type));
+    items = entries.filter(item => item.kind !== "folder").map(item => ({ item, type: previewType(item) }));
     return show(items.findIndex(({ item }) => item.id === selected.id));
   };
 }

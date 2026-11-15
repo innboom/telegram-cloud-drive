@@ -1,4 +1,4 @@
-import { isDocumentPreview, isRenderedDocument, isWorkbookPreview, previewType } from "./media-types.js";
+import { isRenderedDocument, isWorkbookPreview, previewType } from "./media-types.js";
 
 const status = document.getElementById("status");
 const frame = document.querySelector("iframe");
@@ -51,13 +51,10 @@ async function loadPreview() {
   const filename = response.headers.get("Content-Disposition")?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
   const name = filename ? decodeURIComponent(filename) : "文件";
   document.title = name;
-  const detected = previewType({ name, mime: response.headers.get("X-File-Mime") });
-  const type = code ? detected
-    : isDocumentPreview(detected) ? detected
-      : params.get("type") === "pdf" ? "application/pdf" : "text/html";
+  const type = previewType({ name, mime: response.headers.get("X-File-Mime") });
   if (!type) {
     await response.body?.cancel();
-    downloadFallback("此格式可以下载后打开。", path, name).click();
+    status.textContent = "此格式无法在线预览，请返回网盘下载。";
     return;
   }
   const blob = await response.blob();
@@ -102,7 +99,7 @@ async function loadPreview() {
     player.className = "shared-media-player";
     player.controls = true;
     player.playsInline = true;
-    if (code && !file && kind === "video") player.classList.add("shared-video-full");
+    if (kind === "video") player.classList.add("shared-video-full");
     player.setAttribute("aria-label", name);
     player.addEventListener("error", () => {
       player.hidden = true;
