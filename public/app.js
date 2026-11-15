@@ -11,6 +11,7 @@ const $ = (id) => document.getElementById(id);
 const uploadForm = $("upload-form");
 const uploadNote = $("upload-note");
 const sendNote = $("send-note");
+const searchForm = $("search");
 localizeDrive();
 const MiB = 1024 * 1024;
 const pageSize = 50;
@@ -25,6 +26,7 @@ let page = 0;
 let query = "";
 let tag = "";
 let fileType = "";
+let searchTimer;
 let listing = 0;
 let uploading = false;
 
@@ -117,9 +119,7 @@ function loggedOut() {
   folderIndex.clear();
   expandedFolders.clear();
   setBranchExpanded($("root-toggle"), $("folder-tree"), "", true);
-  page = 0;
-  query = tag = fileType = "";
-  $("search").reset();
+  resetFilters();
   stopCovers?.();
   stopCovers = undefined;
   $("entries").replaceChildren();
@@ -147,9 +147,10 @@ async function loggedIn() {
 }
 
 function resetFilters() {
+  clearTimeout(searchTimer);
   query = tag = fileType = "";
   page = 0;
-  $("search").reset();
+  searchForm.reset();
 }
 
 async function goRoot() {
@@ -735,7 +736,7 @@ function renderItem(item, entries) {
 async function refresh(focus = null) {
   const sequence = ++listing;
   const params = new URLSearchParams({
-    parent: currentFolder(), q: query, tag, type: fileType, sort: $("sort").value, offset: page * pageSize
+    parent: currentFolder(), q: query, tag, type: fileType, sort: "created-desc", offset: page * pageSize
   });
   if (focus) params.set("focus", focus);
   const result = await api("/api/entries?" + params);
@@ -764,6 +765,7 @@ async function refresh(focus = null) {
     localizeValue(label, () => " / " + translate("全局搜索"), "data");
     crumbs.append(label);
   }
+  crumbs.scrollLeft = crumbs.scrollWidth;
   const entries = $("entries");
   stopCovers?.();
   visibleEntries = result.entries;
@@ -957,20 +959,28 @@ document.addEventListener("keydown", (event) => {
     menu.open = false;
   }
 });
-$("search").addEventListener("submit", action(async (event) => {
+searchForm.addEventListener("submit", action(async (event) => {
   event.preventDefault();
-  const form = new FormData(event.target);
+  clearTimeout(searchTimer);
+  const form = new FormData(searchForm);
   query = form.get("q").trim();
   tag = form.get("tag").trim();
   fileType = form.get("type");
   page = 0;
   await refresh();
 }));
-$("file-type").addEventListener("change", () => $("search").requestSubmit());
-$("sort").addEventListener("change", action(async () => {
-  page = 0;
-  await refresh();
-}));
+function scheduleSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => searchForm.requestSubmit(), 250);
+}
+for (const input of searchForm.querySelectorAll('input[type="search"]')) {
+  input.addEventListener("input", event => {
+    if (!event.isComposing) scheduleSearch();
+  });
+  input.addEventListener("compositionstart", () => clearTimeout(searchTimer));
+  input.addEventListener("compositionend", scheduleSearch);
+}
+$("file-type").addEventListener("change", () => searchForm.requestSubmit());
 $("new-folder").addEventListener("click", action(async () => {
   const name = prompt(translate("目录名称"));
   if (name === null) return;

@@ -159,22 +159,22 @@ input::placeholder { color: var(--placeholder); }
 .workspace { min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: clamp(14px, 3vw, 26px); box-shadow: var(--shadow); }
 .workspace-heading { margin-bottom: 22px; }
 .workspace-heading button span { margin-right: 3px; }
-#search { gap: 8px; }
+#search { margin-bottom: 10px; }
+#search > :is(button, select, input) { padding: 5px 8px; font-size: 13px; }
+#search .search-field { flex: 0 1 165px; min-width: min(125px, 100%); }
+#search .search-field input { font-size: 13px; padding-block: 5px; }
 .search-field {
   display: flex; align-items: center; gap: 8px; flex: 1 1 200px; min-width: 0;
   padding-left: 12px; color: var(--muted); border: 1px solid var(--border); border-radius: 10px;
 }
 .search-field:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .search-field input { width: 100%; padding-left: 0; border: 0; outline: none; background: transparent; }
-#search input[name=tag] { width: min(145px, 100%); }
-.list-toolbar { margin: 15px 0 9px; gap: 6px 12px; }
-#breadcrumbs { flex: 1 1 160px; color: var(--muted); font-size: 13px; min-height: 31px; overflow-wrap: anywhere; }
-.sort-control { display: inline-flex; gap: 7px; align-items: center; margin-left: auto; color: var(--muted); font-size: 13px; }
-.sort-control select { padding: 5px 8px; color: var(--text); }
+#search input[name=tag] { width: min(100px, 100%); }
+#breadcrumbs { flex: 1 1 120px; min-width: 0; min-height: 31px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; color: var(--muted); font-size: 13px; white-space: nowrap; }
 .view-switch { display: inline-flex; flex: none; padding: 2px; gap: 2px; border: 1px solid var(--border); border-radius: 9px; }
 .view-switch button { padding: 4px 8px; border: 0; border-radius: 6px; font-size: 13px; }
 .view-switch button[aria-pressed="true"] { color: var(--accent-strong); background: var(--accent-soft); }
-#breadcrumbs button { border: 0; padding: 4px 7px; color: var(--accent-strong); white-space: normal; max-width: 100%; }
+#breadcrumbs button { flex: none; border: 0; padding: 4px; color: var(--accent-strong); }
 #drop-zone, .inbox-file-list {
   display: flex; flex-direction: column; height: clamp(245px, 60dvh, 560px); min-height: 0;
   border: 1px solid var(--border); border-radius: 13px;
@@ -349,7 +349,8 @@ input::placeholder { color: var(--placeholder); }
 #inbox-search { margin: 0 0 10px; }
 .inbox-toolbar .inbox-breadcrumbs { flex: 1 1 120px; }
 .inbox-toolbar > select { padding: 5px 8px; font-size: 13px; }
-#inbox-mkdir { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; }
+button.mkdir-button, #search > .mkdir-button { display: grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; }
+#new-folder { margin-left: auto; }
 .inbox-toolbar .search-field { flex: 1 1 150px; }
 .inbox-toolbar .search-field input { font-size: 13px; padding-block: 5px; }
 .inbox-breadcrumbs { flex: 1 1 160px; min-width: 0; color: var(--muted); font-size: 13px; }
@@ -532,7 +533,6 @@ dialog.media-preview { width: calc(100% - 24px); max-width: 1440px; height: calc
   .workspace-heading { gap: 12px; }
   .workspace-heading h2 { width: 100%; }
   .search-field { flex-basis: 100%; }
-  #search input[name=tag] { flex: 1; }
   #entries li { gap: 7px; padding-inline: 8px; }
   .file-tile { width: 38px; height: 33px; }
   .actions > button, summary { padding-inline: 7px; }
