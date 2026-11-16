@@ -6,7 +6,7 @@ import { fileIcon } from "./file-icons.js";
 import { formatEntryDate, formatEntryKind, formatEntrySize } from "./entry-format.js";
 import { clearLocalizedValue, language, localizeDrive, localizeValue, translate } from "./drive-i18n.js";
 import { bindViewSwitch } from "./view-switch.js";
-import { droppedItems, pastedFiles, selectedDirectoryItems, showUploadProgress, uploadDirectories, uploadFile } from "./uploads.js";
+import { createUploadFeedback, droppedItems, pastedFiles, selectedDirectoryItems, uploadDirectories, uploadFile } from "./uploads.js";
 
 const $ = (id) => document.getElementById(id);
 localizeDrive();
@@ -442,7 +442,7 @@ async function uploadItems(items) {
   if (form.hidden || submit.disabled || navigating) return;
   const uploadFolder = folder;
   setUploadBusy(true);
-  const progress = $("inbox-progress");
+  const feedback = createUploadFeedback($("inbox-progress"), translate);
   clearLocalizedValue(status);
   status.textContent = "";
   let completed = 0;
@@ -468,7 +468,7 @@ async function uploadItems(items) {
           throw new Error(translate("文件必须大于 0 字节且不超过 {limit} MiB", { limit: maxUploadMiB }));
         }
         const target = await ensurePath(path);
-        const update = showUploadProgress(progress, file, position, total, translate);
+        const update = feedback.progress(file, position, total);
         await uploadFile(folderQuery({ name: file.name }, target), file, {}, update, translate);
         completed += 1;
       } catch (error) {
@@ -483,12 +483,14 @@ async function uploadItems(items) {
     if (created) summary.push(translate("已创建 {count} 个文件夹", { count: created }));
     clearLocalizedValue(status);
     status.textContent = [...summary, ...failures].join("\n");
+    feedback.finish([...summary, ...failures.slice(0, 1)].join("\n"), failures.length > 0);
     if ((completed || created) && !form.hidden && !navigating) await loadFolder().catch(folderError);
   } catch (error) {
+    feedback.finish(error.message, true);
     folderError(error);
   } finally {
     input.value = directoryInput.value = "";
-    progress.hidden = true;
+    feedback.close();
     setUploadBusy(false);
   }
   return completed;

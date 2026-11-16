@@ -1,4 +1,4 @@
-import { localizeValue } from "./drive-i18n.js";
+import { clearLocalizedValue, localizeValue } from "./drive-i18n.js";
 
 export function pastedFiles(event) {
   if (event.target.closest?.("input, textarea, select, [contenteditable]:not([contenteditable='false'])")) return [];
@@ -78,17 +78,55 @@ export function uploadFile(path, file, headers, update, translate = null) {
   });
 }
 
-export function showUploadProgress(panel, file, index, total, translate = null) {
+function showUploadProgress(panel, file, index, total, translate) {
   const label = panel.querySelector("span");
   const bar = panel.querySelector("progress");
   const name = (index + 1) + "/" + total + " · " + file.name;
   function update(percent) {
     bar.value = percent;
     const message = percent === 100 ? "正在保存 · {name}" : "正在上传 {percent}% · {name}";
-    if (translate) localizeValue(label, () => translate(message, { name, percent }));
-    else label.textContent = percent === 100 ? "正在保存 · " + name : "正在上传 " + percent + "% · " + name;
+    localizeValue(label, () => translate(message, { name, percent }));
   }
   update(0);
   panel.hidden = false;
   return update;
+}
+
+export function createUploadFeedback(panel, translate) {
+  const header = document.querySelector(".site-header");
+  header.querySelector(".upload-toast")?.remove();
+  const toast = document.createElement("div");
+  toast.className = "upload-toast upload-progress";
+  toast.setAttribute("role", "status");
+  const label = document.createElement("span");
+  const bar = document.createElement("progress");
+  bar.max = 100;
+  localizeValue(bar, () => translate("文件上传进度"), "@aria-label");
+  localizeValue(label, () => translate("正在准备上传…"));
+  toast.append(label, bar);
+  header.append(toast);
+  let finished = false;
+
+  return {
+    progress(file, index, total) {
+      const updatePanel = showUploadProgress(panel, file, index, total, translate);
+      const updateToast = showUploadProgress(toast, file, index, total, translate);
+      return percent => {
+        updatePanel(percent);
+        updateToast(percent);
+      };
+    },
+    finish(message, error = false) {
+      finished = true;
+      panel.hidden = bar.hidden = true;
+      toast.classList.toggle("upload-toast-error", error);
+      clearLocalizedValue(label);
+      label.textContent = message;
+      setTimeout(() => toast.remove(), error ? 7000 : 3500);
+    },
+    close() {
+      panel.hidden = true;
+      if (!finished) toast.remove();
+    }
+  };
 }

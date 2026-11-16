@@ -1,5 +1,6 @@
 const languages = ["zh", "en", "ko", "ja"];
 const messages = new Map([
+  ["正在准备上传…",["Preparing upload…","업로드 준비 중…","アップロードを準備しています…"]],
   ["启用对外上传接口",["Enable external upload API","외부 업로드 API 사용","外部アップロード API を有効化"]],
   ["开启前请在 Cloudflare 配置 EXTERNAL_UPLOAD_KEY。",["Set EXTERNAL_UPLOAD_KEY in Cloudflare before enabling.","활성화하기 전에 Cloudflare에서 EXTERNAL_UPLOAD_KEY를 설정하세요.","有効にする前に Cloudflare で EXTERNAL_UPLOAD_KEY を設定してください。"]],
   ["请先在 Cloudflare 配置独立的 EXTERNAL_UPLOAD_KEY",["Set a separate EXTERNAL_UPLOAD_KEY in Cloudflare first","먼저 Cloudflare에서 별도의 EXTERNAL_UPLOAD_KEY를 설정하세요","先に Cloudflare で専用の EXTERNAL_UPLOAD_KEY を設定してください"]],

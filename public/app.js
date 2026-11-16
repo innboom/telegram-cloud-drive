@@ -6,7 +6,7 @@ import { fileIcon } from "./file-icons.js";
 import { language, localizeDrive, localizeValue, translate } from "./drive-i18n.js";
 import { formatEntryDate, entryExtension, formatEntryKind, formatEntrySize } from "./entry-format.js";
 import { bindViewSwitch } from "./view-switch.js";
-import { droppedItems, pastedFiles, selectedDirectoryItems, showUploadProgress, uploadDirectories, uploadFile } from "./uploads.js";
+import { createUploadFeedback, droppedItems, pastedFiles, selectedDirectoryItems, uploadDirectories, uploadFile } from "./uploads.js";
 
 const $ = (id) => document.getElementById(id);
 const uploadForm = $("upload-form");
@@ -817,7 +817,7 @@ async function uploadItems(items, parent = currentFolder()) {
   let completed = 0;
   let created = 0;
   let index = 0;
-  const progress = $("upload-progress");
+  const feedback = createUploadFeedback($("upload-progress"), translate);
   const ensurePath = uploadDirectories(parent, async (name, target) => {
     const { id } = await api("/api/folders", { method: "POST", json: { name, parent: target || null } });
     created += 1;
@@ -839,7 +839,7 @@ async function uploadItems(items, parent = currentFolder()) {
         }
         const target = await ensurePath(path);
         const params = new URLSearchParams({ parent: target, name: file.name });
-        const updateProgress = showUploadProgress(progress, file, position, total, translate);
+        const updateProgress = feedback.progress(file, position, total);
         await uploadFile("/api/upload?" + params, file, { Authorization: "Bearer " + token }, updateProgress, language === "zh" ? null : translate);
         completed += 1;
       } catch (error) {
@@ -851,6 +851,7 @@ async function uploadItems(items, parent = currentFolder()) {
     const summary = [translate("已上传 {done}/{total} 个文件", { done: completed, total })];
     if (created) summary.push(translate("已创建 {count} 个文件夹", { count: created }));
     notice([...summary, ...failures].join("\n"), failures.length > 0);
+    feedback.finish([...summary, ...failures.slice(0, 1)].join("\n"), failures.length > 0);
     try {
       if (created) await loadFolderTree();
       if (completed || created) await refresh();
@@ -858,8 +859,11 @@ async function uploadItems(items, parent = currentFolder()) {
       notice(error.message, true);
     }
     return completed;
+  } catch (error) {
+    feedback.finish(error.message, true);
+    throw error;
   } finally {
-    progress.hidden = true;
+    feedback.close();
     setUploadBusy(false);
   }
 }
