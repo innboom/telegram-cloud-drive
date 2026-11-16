@@ -80,6 +80,7 @@ small, p { color: var(--muted); }
 .site-header { background: var(--surface); border-bottom: 1px solid var(--border); }
 .header-inner, main { width: min(100%, 1536px); margin-inline: auto; padding-inline: clamp(16px, 4vw, 48px); }
 .header-inner { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
+.header-actions { flex: none; flex-wrap: nowrap; }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .brand p { font-size: 13px; margin-top: 3px; overflow-wrap: anywhere; }
 .brand-mark, .login-mark, .file-tile, .empty-mark {
@@ -319,8 +320,8 @@ input::placeholder { color: var(--placeholder); }
 .empty-mark { width: 54px; height: 54px; border-radius: 16px; }
 #pagination { justify-content: flex-end; margin-top: 16px; color: var(--muted); font-size: 13px; }
 .notifications { min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
-.notifications-heading { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
-.notifications-heading h2 { order: -1; margin-inline-end: auto; font-size: 16px; }
+.notifications-heading { margin-bottom: 10px; }
+.notifications-heading h2 { font-size: 16px; }
 .github-project { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 6px; color: var(--muted); }
 .github-project:hover, .github-project:focus-visible { background: var(--row-hover); color: var(--text); }
 .github-project::before { content: ""; width: 16px; height: 16px; background: currentColor; mask: url("/github-mark.svg") center / contain no-repeat; }
