@@ -1,4 +1,5 @@
 import { createMediaPreview } from "./media-preview.js";
+import "./notifications.js";
 import { previewType } from "./media-types.js";
 import { observeCovers } from "./media-covers.js";
 import { fileIcon } from "./file-icons.js";
