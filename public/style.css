@@ -487,6 +487,8 @@ button.mkdir-button, #search > .mkdir-button { display: grid; place-items: cente
 dialog { width: min(92vw, 490px); background: var(--surface); color: inherit; border: 1px solid var(--border); border-radius: 20px; padding: clamp(16px, 4vw, 27px); box-shadow: var(--shadow); }
 dialog::backdrop { background: var(--backdrop); }
 dialog label { display: grid; gap: 6px; margin: 16px 0; font-weight: 600; }
+#settings-form .settings-checkbox { display: flex; margin-bottom: 4px; }
+#external-upload-hint { font-size: 13px; }
 .dialog-actions { justify-content: flex-end; margin-top: 23px; }
 dialog.media-preview { width: calc(100% - 24px); max-width: 1440px; height: calc(100dvh - 24px); max-height: none; padding: 0; overflow: hidden; }
 .media-preview[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }

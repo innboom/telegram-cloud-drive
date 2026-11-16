@@ -1,5 +1,8 @@
 const languages = ["zh", "en", "ko", "ja"];
 const messages = new Map([
+  ["启用对外上传接口",["Enable external upload API","외부 업로드 API 사용","外部アップロード API を有効化"]],
+  ["开启前请在 Cloudflare 配置 EXTERNAL_UPLOAD_KEY。",["Set EXTERNAL_UPLOAD_KEY in Cloudflare before enabling.","활성화하기 전에 Cloudflare에서 EXTERNAL_UPLOAD_KEY를 설정하세요.","有効にする前に Cloudflare で EXTERNAL_UPLOAD_KEY を設定してください。"]],
+  ["请先在 Cloudflare 配置独立的 EXTERNAL_UPLOAD_KEY",["Set a separate EXTERNAL_UPLOAD_KEY in Cloudflare first","먼저 Cloudflare에서 별도의 EXTERNAL_UPLOAD_KEY를 설정하세요","先に Cloudflare で専用の EXTERNAL_UPLOAD_KEY を設定してください"]],
   ["重试",["Retry","다시 시도","再試行"]],
   ["文件夹加载超时，请重试。",["The folder took too long to load. Please retry.","폴더를 불러오는 시간이 초과되었습니다. 다시 시도해 주세요.","フォルダーの読み込みがタイムアウトしました。再試行してください。"]],
   ["预览请求超时，请重新打开或下载原文件。",["Preview timed out. Reopen it or download the original file.","미리보기 시간이 초과되었습니다. 다시 열거나 원본 파일을 다운로드하세요.","プレビューがタイムアウトしました。開き直すか、元のファイルをダウンロードしてください。"]],

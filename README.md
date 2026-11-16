@@ -23,6 +23,8 @@
 
 Fork 部署使用部署者自己的 D1、KV、Bot 和频道。目录记录和密钥需在自己的部署中配置。
 
+如需让脚本或第三方服务上传文件，可以配置独立的 `EXTERNAL_UPLOAD_KEY`，然后在管理员「设置」中开启对外上传接口。默认关闭，复用现有 `CONFIG` KV。调用示例、路径规则和限制见 [对外上传接口](docs/architecture.md#对外上传接口)。
+
 [Cloudflare Git 部署](https://developers.cloudflare.com/workers/ci-cd/builds/) · [自动创建 KV 和 D1](https://developers.cloudflare.com/workers/wrangler/configuration/#automatic-provisioning) · [Worker Secrets](https://developers.cloudflare.com/workers/configuration/secrets/)
 
 ## 本地开发

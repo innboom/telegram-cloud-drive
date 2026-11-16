@@ -1048,7 +1048,8 @@ $("manager").addEventListener("drop", action(async (event) => {
 }));
 $("settings").addEventListener("click", () => {
   const form = $("settings-form");
-  for (const [name, value] of Object.entries(config)) form.elements.namedItem(name).value = value;
+  for (const name of ["title", "description", "maxUploadMiB"]) form.elements.namedItem(name).value = config[name];
+  form.elements.externalUploadEnabled.checked = config.externalUploadEnabled === true;
   $("settings-dialog").showModal();
 });
 $("open-help").addEventListener("click", () => $("help-dialog").showModal());
@@ -1057,6 +1058,7 @@ $("settings-form").addEventListener("submit", action(async (event) => {
   const form = new FormData(event.target);
   const settings = Object.fromEntries(form);
   settings.maxUploadMiB = Number(settings.maxUploadMiB);
+  settings.externalUploadEnabled = event.target.elements.externalUploadEnabled.checked;
   applyConfig(await api("/api/config", { method: "PUT", json: settings }));
   $("settings-dialog").close();
   notice(translate("设置已保存。其他地区可能稍后更新。"));

@@ -3,7 +3,7 @@ import { extensionGroups } from "../public/file-icons.js";
 
 const MiB = 1024 * 1024;
 const downloadLimit = 20 * MiB;
-const defaults = { title: "云盘", description: "", maxUploadMiB: 20 };
+const defaults = { title: "云盘", description: "", maxUploadMiB: 20, externalUploadEnabled: false };
 const configKey = "site:config";
 const imageTypes = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"]);
 const columns = "id, parent_id, kind, name, mime, size, tags, share_code, share_expires_at, created_at";
@@ -46,15 +46,23 @@ async function sharePage(env, url, page) {
   return new Response(asset.body, { status: asset.status, headers });
 }
 
+function bearerToken(request) {
+  return request.headers.get("Authorization")?.match(/^Bearer (.+)$/i)?.[1];
+}
+
+async function sameSecret(provided, expected) {
+  const hash = value => crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  const [actual, required] = await Promise.all([hash(provided), hash(expected)]);
+  return crypto.subtle.timingSafeEqual(actual, required);
+}
+
 async function requireAdmin(request, env) {
   if (!env.ADMIN_TOKEN || env.ADMIN_TOKEN.length < 8) {
     throw new HttpError(503, "登录暂不可用，请联系管理员");
   }
-  const provided = request.headers.get("Authorization")?.match(/^Bearer (.+)$/i)?.[1];
+  const provided = bearerToken(request);
   if (!provided) throw new HttpError(401, "请输入管理员密钥");
-  const hash = (value) => crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  const [actual, expected] = await Promise.all([hash(provided), hash(env.ADMIN_TOKEN)]);
-  if (!crypto.subtle.timingSafeEqual(actual, expected)) throw new HttpError(401, "管理员密钥不正确");
+  if (!await sameSecret(provided, env.ADMIN_TOKEN)) throw new HttpError(401, "管理员密钥不正确");
 }
 
 function validateConfig(value) {
@@ -65,7 +73,7 @@ function validateConfig(value) {
       !Number.isInteger(maxUploadMiB) || maxUploadMiB < 1 || maxUploadMiB > 20) {
     throw new HttpError(400, "请填写站点名称，上传限制须为 1–20 MiB");
   }
-  return { title, description, maxUploadMiB };
+  return { title, description, maxUploadMiB, externalUploadEnabled: value.externalUploadEnabled === true };
 }
 
 async function getConfig(env) {
@@ -281,10 +289,9 @@ async function telegram(env, method, body) {
   return data.result;
 }
 
-async function upload(request, db, env, url, inbox = null) {
-  const name = validName(url.searchParams.get("name"));
-  const parent = inbox ? inbox.id : url.searchParams.get("parent") || null;
-  const { maxUploadMiB } = await getConfig(env);
+async function upload(request, db, env, { name, parent, inboxCode, maxUploadMiB }) {
+  name = validName(name);
+  maxUploadMiB ??= (await getConfig(env)).maxUploadMiB;
   const limit = maxUploadMiB * MiB;
   const tooLarge = () => new HttpError(413, `文件不能超过 ${maxUploadMiB} MiB`);
   if (Number(request.headers.get("Content-Length")) > limit) throw tooLarge();
@@ -322,7 +329,7 @@ async function upload(request, db, env, url, inbox = null) {
   try {
     return await createEntry(db, {
       parent, kind: "file", name, mime, size, fileId: message.document.file_id,
-      messageId, chatId, inboxCode: inbox?.code
+      messageId, chatId, inboxCode: inboxCode ?? null
     });
   } catch (error) {
     if (error instanceof HttpError && error.status === 404) {
@@ -483,7 +490,7 @@ async function publicFolder(request, db, env, url, code, root) {
       const body = await bodyJson(request);
       return createEntry(db, { parent: id, kind: "folder", name: validName(body?.name), inboxCode: code });
     }
-    return upload(request, db, env, url, { id, code });
+    return upload(request, db, env, { name: url.searchParams.get("name"), parent: id, inboxCode: code });
   }
 
   const offset = Math.max(0, Math.min(1000000, Number.parseInt(url.searchParams.get("offset"), 10) || 0));
@@ -520,12 +527,48 @@ async function activeShortShare(db, code) {
   return item;
 }
 
+function externalUploadKey(env) {
+  const key = env.EXTERNAL_UPLOAD_KEY;
+  return typeof key === "string" && /^[\x21-\x7e]{32,256}$/.test(key) && key !== env.ADMIN_TOKEN ? key : null;
+}
+
+async function resolveUploadPath(db, path) {
+  if (path === "/") return null;
+  if (!path || !path.startsWith("/") || path.length > 4096) throw new HttpError(400, "请提供绝对目录路径");
+  const segments = path.slice(1).split("/");
+  if (segments.length > 32) throw new HttpError(400, "目标路径最多支持 32 层目录");
+  const names = segments.map(validName);
+  let parent = null;
+  for (const name of names) {
+    const { results } = await db.prepare(`SELECT id FROM entries
+      WHERE parent_id IS ? AND name = ? AND kind = 'folder' AND deleted_at IS NULL LIMIT 2`)
+      .bind(parent, name).all();
+    if (!results.length) throw new HttpError(404, "目标目录不存在");
+    if (results.length > 1) throw new HttpError(409, "目标路径有同名目录，无法确定上传位置");
+    parent = results[0].id;
+  }
+  return parent;
+}
+
+async function externalUpload(request, env, url) {
+  const key = externalUploadKey(env);
+  const provided = bearerToken(request);
+  if (!key || !provided || !await sameSecret(provided, key)) throw new HttpError(401, "上传接口密钥无效");
+  const config = await getConfig(env);
+  if (!config.externalUploadEnabled) throw new HttpError(403, "对外上传接口未开启");
+  const name = validName(url.searchParams.get("name"));
+  const db = await database(env);
+  const parent = await resolveUploadPath(db, url.searchParams.get("path"));
+  return upload(request, db, env, { name, parent, maxUploadMiB: config.maxUploadMiB });
+}
+
 async function handle(request, env) {
   const url = new URL(request.url);
   const { pathname } = url;
   const { method } = request;
   if (pathname === "/api/config" && method === "GET") return json(await getConfig(env));
   if (pathname === "/api/health" && method === "GET") return json({ status: "ok" });
+  if (pathname === "/api/external/upload" && method === "POST") return externalUpload(request, env, url);
   const shortShare = pathname.match(/^\/s\/([a-zA-Z0-9_-]{12})$/);
   if (shortShare && method === "GET") {
     const db = await database(env);
@@ -571,7 +614,14 @@ async function handle(request, env) {
   await requireAdmin(request, env);
   if (pathname === "/api/session" && method === "GET") return json({ ok: true });
   if (pathname === "/api/config" && method === "PUT") {
-    const settings = validateConfig(await bodyJson(request));
+    const input = await bodyJson(request);
+    const settings = validateConfig(input);
+    if (input.externalUploadEnabled === undefined) {
+      settings.externalUploadEnabled = (await getConfig(env)).externalUploadEnabled;
+    }
+    if (input.externalUploadEnabled === true && !externalUploadKey(env)) {
+      throw new HttpError(400, "请先在 Cloudflare 配置独立的 EXTERNAL_UPLOAD_KEY");
+    }
     try {
       await env.CONFIG.put(configKey, JSON.stringify(settings));
     } catch (error) {
@@ -601,7 +651,9 @@ async function handle(request, env) {
     if (parent !== null && typeof parent !== "string") throw new HttpError(400, "目录标识无效");
     return createEntry(db, { parent, kind: "folder", name: validName(body?.name) });
   }
-  if (pathname === "/api/upload" && method === "POST") return upload(request, db, env, url);
+  if (pathname === "/api/upload" && method === "POST") {
+    return upload(request, db, env, { name: url.searchParams.get("name"), parent: url.searchParams.get("parent") || null });
+  }
   const entry = pathname.match(/^\/api\/entries\/([a-f0-9-]{36})(\/(?:preview|download))?$/);
   if (entry) {
     if (entry[2] && method === "GET") return content(db, env, "id", entry[1], entry[2] === "/preview");

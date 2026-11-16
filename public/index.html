@@ -198,6 +198,8 @@
       <label>站点名称<input name="title" required maxlength="60"></label>
       <label>站点描述<input name="description" maxlength="200"></label>
       <label>单文件上传上限（MiB）<input name="maxUploadMiB" type="number" min="1" max="20" required></label>
+      <label class="row settings-checkbox"><input name="externalUploadEnabled" type="checkbox" aria-describedby="external-upload-hint"> 启用对外上传接口</label>
+      <p id="external-upload-hint">开启前请在 Cloudflare 配置 EXTERNAL_UPLOAD_KEY。</p>
       <div class="row dialog-actions"><button type="button" data-close>取消</button><button class="primary">保存</button></div>
     </form>
   </dialog>
