@@ -312,7 +312,8 @@ async function loadFolder(target = folder, offsetPage = 0, historyMode, filters 
   let data;
   try {
     const response = await request(folderQuery({
-      offset: offsetPage * pageSize, q: filters.query, sort: filters.sort, type: filters.fileType
+      offset: offsetPage * pageSize, q: filters.query, sort: filters.sort, type: filters.fileType,
+      ...(offsetPage > 0 ? { tree: "0" } : {})
     }, target), { signal: timeout });
     data = await response.json();
   } catch (error) {

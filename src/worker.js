@@ -490,18 +490,25 @@ async function publicFolder(request, db, env, url, code, root) {
   const query = (url.searchParams.get("q") ?? "").trim().slice(0, 120);
   const order = entrySort.get(url.searchParams.get("sort")) ?? entrySort.get("created-desc");
   const filter = entryTypeFilter(url.searchParams.get("type"), 5);
-  const { results } = await db.prepare(`SELECT id, kind, name, mime, size, created_at FROM entries
+  const entriesQuery = db.prepare(`SELECT id, kind, name, mime, size, created_at FROM entries
     WHERE parent_id = ?1 AND deleted_at IS NULL AND ${inboxContains("?1", "?2")}
     AND (?4 = '' OR instr(lower(name), lower(?4)) > 0)
     AND ${filter.sql}
-    ORDER BY kind DESC, ${order}, id LIMIT 51 OFFSET ?3`).bind(id, code, offset, query, ...filter.values).all();
-  const { maxUploadMiB } = await getConfig(env);
-  const { results: folders } = await db.prepare(`WITH RECURSIVE tree(id, parent_id, name) AS (
+    ORDER BY kind DESC, ${order}, id LIMIT 51 OFFSET ?3`).bind(id, code, offset, query, ...filter.values);
+  if (offset > 0 && url.searchParams.get("tree") === "0") {
+    const { results } = await entriesQuery.all();
+    return json({ entries: results.slice(0, 50), hasMore: results.length > 50 });
+  }
+  const treeQuery = db.prepare(`WITH RECURSIVE tree(id, parent_id, name) AS (
     SELECT id, NULL, name FROM entries WHERE id = ?1 AND share_code = ?2 AND deleted_at IS NULL AND ${activeShare}
     UNION
     SELECT e.id, e.parent_id, e.name FROM entries e JOIN tree ON e.parent_id = tree.id
     WHERE e.kind = 'folder' AND e.deleted_at IS NULL AND e.id <> ?1
-  ) SELECT id, parent_id, name FROM tree ORDER BY name COLLATE NOCASE, id`).bind(root.id, code).all();
+  ) SELECT id, parent_id, name FROM tree ORDER BY name COLLATE NOCASE, id`).bind(root.id, code);
+  const [[{ results }, { results: folders }], { maxUploadMiB }] = await Promise.all([
+    db.batch([entriesQuery, treeQuery]),
+    getConfig(env)
+  ]);
   return json({ name: folder.name, parent: folder.parent_id ?? null, root: id === root.id,
     entries: results.slice(0, 50), folders, rootId: root.id, hasMore: results.length > 50, maxUploadMiB });
 }

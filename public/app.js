@@ -141,8 +141,7 @@ async function loggedIn() {
   $("login").hidden = true;
   $("notice").textContent = "";
   $("manager").hidden = $("account-actions").hidden = false;
-  await loadFolderTree();
-  await refresh();
+  await refresh(null, loadFolderTree());
   await showLinksView();
 }
 
@@ -738,13 +737,13 @@ function renderItem(item, entries) {
   return li;
 }
 
-async function refresh(focus = null) {
+async function refresh(focus = null, folderTree = null) {
   const sequence = ++listing;
   const params = new URLSearchParams({
     parent: currentFolder(), q: query, tag, type: fileType, sort: searchForm.elements.sort.value, offset: page * pageSize
   });
   if (focus) params.set("focus", focus);
-  const result = await api("/api/entries?" + params);
+  const [result] = await Promise.all([api("/api/entries?" + params), folderTree]);
   if (sequence !== listing) return;
   if (focus) page = Math.floor(result.offset / pageSize);
   selectTreeFolder();
