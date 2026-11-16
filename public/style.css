@@ -345,9 +345,9 @@ input::placeholder { color: var(--placeholder); }
 .links-actions a:hover { border-color: var(--hover-border); background: var(--hover); }
 #links-pagination { justify-content: flex-end; margin-top: 14px; }
 #share-description { margin-top: 10px; }
-.inbox-panel { max-width: 980px; margin: 22px auto; padding: clamp(16px, 4vw, 30px); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow); }
+.inbox-panel { max-width: 980px; margin: 22px auto; padding: clamp(14px, 3vw, 22px); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow); }
 .inbox-panel a { color: var(--accent-strong); }
-#inbox-search { margin: 0 0 10px; }
+#inbox-search { margin: 0 0 8px; }
 .inbox-toolbar .inbox-breadcrumbs { flex: 1 1 120px; }
 .inbox-toolbar > select { padding: 5px 8px; font-size: 13px; }
 button.mkdir-button, #search > .mkdir-button { display: grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; }
@@ -369,6 +369,7 @@ button.mkdir-button, #search > .mkdir-button { display: grid; place-items: cente
 .inbox-path-menu .action-panel a { overflow-wrap: anywhere; }
 .inbox-panel :is(a, strong) { overflow-wrap: anywhere; }
 .upload-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding: 13px 16px; border: 1px dashed var(--hover-border); border-radius: 12px; background: var(--list-heading); }
+.inbox-panel .upload-toolbar { margin-top: 10px; padding: 10px 12px; }
 #inbox-form.inbox-dragging { border-color: var(--accent); outline: 2px solid var(--accent); background: var(--accent-soft); }
 .upload-note { display: flex; flex: 1 0 100%; align-items: center; gap: 8px; }
 .upload-note textarea {
@@ -376,7 +377,7 @@ button.mkdir-button, #search > .mkdir-button { display: grid; place-items: cente
   border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
   color: var(--text); font: inherit;
 }
-.inbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 12px; list-style: none; padding: 0; margin: 20px 0 0; }
+.inbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 6px 10px; list-style: none; padding: 0; margin: 8px 0 0; }
 #inbox-empty { color: var(--muted); }
 .inbox-grid li { min-width: 0; border-radius: 12px; padding: 5px 3px; text-align: center; }
 .inbox-grid li:hover, .inbox-grid li:focus-within { background: var(--row-hover); }
@@ -388,7 +389,7 @@ button.mkdir-button, #search > .mkdir-button { display: grid; place-items: cente
 .inbox-list li:has(.inbox-file-feedback:not(:empty)) { flex-wrap: wrap; }
 .inbox-list .inbox-file-feedback { flex-basis: 100%; grid-column: 2 / -1; padding-bottom: 5px; }
 .inbox-grid:not(.inbox-list) li { display: flex; flex-direction: column; align-items: center; }
-.inbox-panel .inbox-grid:not(.inbox-list) .inbox-tile { flex: 1; grid-template-rows: auto 1fr; }
+.inbox-panel .inbox-grid:not(.inbox-list) .inbox-tile { flex: 1; grid-template-rows: auto 1fr; gap: 6px; padding-top: 5px; }
 .inbox-info { display: flex; flex-direction: column; align-self: stretch; min-width: 0; }
 .inbox-name { font-weight: 600; }
 .inbox-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 8px; margin-top: auto; padding-top: 4px; color: var(--muted); font-size: 12px; font-weight: 400; }
@@ -465,7 +466,7 @@ button.mkdir-button, #search > .mkdir-button { display: grid; place-items: cente
 .video-cover::before, .video-cover::after { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
 .video-cover::before { width: var(--play-size); height: var(--play-size); border-radius: 50%; background: #54575be8; }
 .video-cover::after { width: var(--play-triangle); height: var(--play-triangle); background: white; clip-path: polygon(20% 0, 100% 50%, 20% 100%); }
-#inbox-pagination { justify-content: flex-end; margin-top: 14px; }
+#inbox-pagination { justify-content: flex-end; margin-top: 8px; }
 #inbox-status { white-space: pre-line; overflow-wrap: anywhere; }
 #inbox-status:not(:empty) { margin-top: 16px; }
 #notice:empty { display: none; }
