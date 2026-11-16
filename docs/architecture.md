@@ -77,14 +77,36 @@ KV 使用 `site:config` 保存 `title`、`description`、`maxUploadMiB` 和 `ext
 2. 登录网盘，在「设置」勾选「启用对外上传接口」并保存。开关保存在现有 `CONFIG` 的 `site:config.externalUploadEnabled`。各地区读取到新值可能有延迟，开启和关闭都受 KV 传播时间影响。需要撤销旧密钥时，可在 Worker 中更换或移除该 Secret。 [Cloudflare KV 一致性](https://developers.cloudflare.com/kv/concepts/how-kv-works/#consistency)
 3. 从脚本或服务端发起请求，每次上传一个文件。请求正文是文件原始字节。接口沿用后台配置的单文件上限，最高 20 MiB（20,971,520 字节）。
 
+例如，要把本地的 `视频.mp4` 上传到网盘的「根目录 / 公开 / 抖音」，传 `path=/公开/抖音`，并用 `name=视频.mp4` 指定保存后的文件名。路径从网盘根目录开始，使用界面显示的实际目录名。把示例域名换成自己的网盘域名，并在调用环境中设置 `EXTERNAL_UPLOAD_KEY`。
+
+| 参数 | 位置 | 示例 |
+| --- | --- | --- |
+| `path` | URL 查询参数 | `/公开/抖音` |
+| `name` | URL 查询参数 | `视频.mp4` |
+| `Authorization` | 请求头 | `Bearer <EXTERNAL_UPLOAD_KEY 的值>` |
+| 文件内容 | 请求正文 | 本地 `视频.mp4` 的原始字节 |
+
+Windows PowerShell 示例：
+
+```powershell
+$path = [Uri]::EscapeDataString('/公开/抖音')
+$name = [Uri]::EscapeDataString('视频.mp4')
+$url = "https://drive.example.com/api/external/upload?path=$path&name=$name"
+Invoke-RestMethod -Method Post -Uri $url `
+  -Headers @{ Authorization = "Bearer $env:EXTERNAL_UPLOAD_KEY" } `
+  -ContentType 'video/mp4' -InFile 'C:\Videos\视频.mp4'
+```
+
+curl 示例：
+
 ```bash
 curl --request POST \
   --url 'https://drive.example.com/api/external/upload' \
-  --url-query 'path=/资料/收件' \
-  --url-query 'name=报告.pdf' \
+  --url-query 'path=/公开/抖音' \
+  --url-query 'name=视频.mp4' \
   --header "Authorization: Bearer ${EXTERNAL_UPLOAD_KEY}" \
-  --header 'Content-Type: application/pdf' \
-  --data-binary '@报告.pdf'
+  --header 'Content-Type: video/mp4' \
+  --data-binary '@视频.mp4'
 ```
 
 `path` 和 `name` 均为必填查询参数，需要 URL 编码。`path=/` 表示网盘根目录，其他路径按现有文件夹名称逐层匹配，最多 32 层。接口不会创建目录。目标路径中有同名目录时返回冲突，以免上传到错误位置。持有密钥的调用方可向任一现有网盘目录上传，并继承该目录已有的分享可见性。
