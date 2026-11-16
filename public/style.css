@@ -347,6 +347,8 @@ input::placeholder { color: var(--placeholder); }
 #share-description { margin-top: 10px; }
 .inbox-panel { max-width: 980px; margin: 22px auto; padding: clamp(14px, 3vw, 22px); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow); }
 .inbox-panel a { color: var(--accent-strong); }
+#inbox-start-error { text-align: center; }
+#inbox-retry { margin-top: 10px; }
 #inbox-search { margin: 0 0 8px; }
 .inbox-toolbar .inbox-breadcrumbs { flex: 1 1 120px; }
 .inbox-toolbar > select { padding: 5px 8px; font-size: 13px; }

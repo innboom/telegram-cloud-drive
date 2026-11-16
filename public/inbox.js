@@ -291,14 +291,16 @@ function renderFolderTree(data) {
 
 async function loadFolder(target = folder, offsetPage = page, historyMode, filters = { query, fileType }) {
   const sequence = ++listing;
+  const timeout = AbortSignal.timeout(15000);
   let data;
   try {
     const response = await request(folderQuery({
       offset: offsetPage * pageSize, q: filters.query, sort: "created-desc", type: filters.fileType
-    }, target));
+    }, target), { signal: timeout });
     data = await response.json();
   } catch (error) {
     if (sequence !== listing) return;
+    if (timeout.aborted) throw new Error(translate("文件夹加载超时，请重试。"));
     throw error;
   }
   if (sequence !== listing) return;
@@ -576,9 +578,27 @@ $("inbox-next").addEventListener("click", () => {
   if (!navigating && !submit.disabled) loadFolder(folder, page + 1).catch(folderError);
 });
 
+const startError = $("inbox-start-error");
+const startMessage = $("inbox-start-message");
+const retry = $("inbox-retry");
+
+async function openSharedFolder() {
+  startError.hidden = true;
+  try {
+    await loadFolder();
+    panel.hidden = false;
+  } catch (error) {
+    startMessage.textContent = error.message;
+    retry.hidden = error.status === 404;
+    startError.hidden = false;
+  }
+}
+
+retry.addEventListener("click", openSharedFolder);
 if (code) {
-  loadFolder().catch(folderError).finally(() => { panel.hidden = false; });
+  void openSharedFolder();
 } else {
-  localizeValue(status, () => translate("公开文件夹链接已失效，请索取新的短链接。"));
-  panel.hidden = false;
+  localizeValue(startMessage, () => translate("公开文件夹链接已失效，请索取新的短链接。"));
+  retry.hidden = true;
+  startError.hidden = false;
 }

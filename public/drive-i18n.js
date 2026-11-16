@@ -1,5 +1,7 @@
 const languages = ["zh", "en", "ko", "ja"];
 const messages = new Map([
+  ["重试",["Retry","다시 시도","再試行"]],
+  ["文件夹加载超时，请重试。",["The folder took too long to load. Please retry.","폴더를 불러오는 시간이 초과되었습니다. 다시 시도해 주세요.","フォルダーの読み込みがタイムアウトしました。再試行してください。"]],
   ["预览请求超时，请重新打开或下载原文件。",["Preview timed out. Reopen it or download the original file.","미리보기 시간이 초과되었습니다. 다시 열거나 원본 파일을 다운로드하세요.","プレビューがタイムアウトしました。開き直すか、元のファイルをダウンロードしてください。"]],
   ["在新标签页查看",["Open in new tab","새 탭에서 보기","新しいタブで表示"]],
   ["上级目录",["Parent folders","상위 폴더","上位フォルダー"]],
