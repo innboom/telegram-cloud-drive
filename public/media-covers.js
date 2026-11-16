@@ -98,11 +98,15 @@ export function observeCovers(grid, headers) {
     }
     processQueue();
   }, { rootMargin: "120px" });
-  for (const tile of grid.querySelectorAll("[data-cover-type]")) observer.observe(tile);
-  return () => {
+  function observe(container) {
+    for (const tile of container.querySelectorAll("[data-cover-type]")) observer.observe(tile);
+  }
+  observe(grid);
+  function disconnect() {
     observer.disconnect();
     controller.abort();
     pending.length = 0;
     for (const url of urls) URL.revokeObjectURL(url);
-  };
+  }
+  return { observe, disconnect };
 }

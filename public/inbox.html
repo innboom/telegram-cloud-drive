@@ -77,10 +77,9 @@
         <div class="file-scroll" tabindex="0" aria-label="文件列表">
           <ul id="inbox-entries" class="inbox-grid" aria-label="文件"></ul>
           <p id="inbox-empty" hidden>这个文件夹还没有文件。</p>
+          <div id="inbox-more" aria-hidden="true" hidden></div>
+          <button id="inbox-more-retry" type="button" hidden>重试</button>
         </div>
-      </div>
-      <div id="inbox-pagination" class="row" hidden>
-        <button id="inbox-previous">上一页</button><span id="inbox-page"></span><button id="inbox-next">下一页</button>
       </div>
       <form id="inbox-form" class="upload-toolbar" hidden>
         <input id="inbox-files" type="file" multiple hidden>

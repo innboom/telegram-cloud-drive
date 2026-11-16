@@ -24,6 +24,8 @@ const status = $("inbox-status");
 const endpoint = "/api/inbox/" + code;
 const pageSize = 50;
 let page = 0;
+let visibleEntries = [];
+let hasMore = false;
 let maxUploadMiB;
 let listing = 0;
 let query = "";
@@ -32,7 +34,18 @@ let navigating = false;
 let searchTimer;
 let treeSnapshot;
 
-let stopCovers;
+let covers;
+const more = $("inbox-more");
+const moreRetry = $("inbox-more-retry");
+const moreObserver = new IntersectionObserver(entries => {
+  if (!more.hidden && entries.some(entry => entry.isIntersecting)) void loadMore();
+}, { rootMargin: "80px" });
+
+function showMore(available) {
+  moreObserver.unobserve(more);
+  more.hidden = !available;
+  if (available) moreObserver.observe(more);
+}
 
 const viewSwitch = $("inbox-view-switch");
 bindViewSwitch(viewSwitch, "cloud-drive-inbox-view", "grid", (view) => {
@@ -92,7 +105,7 @@ const preview = createMediaPreview($("inbox-preview"), {
   translate
 });
 
-function renderEntry(item, entries) {
+function renderEntry(item) {
   const row = document.createElement("li");
   const isFolder = item.kind === "folder";
   const type = previewType(item);
@@ -163,7 +176,7 @@ function renderEntry(item, entries) {
     open.dataset.folderLink = "";
   } else {
     open.type = "button";
-    open.addEventListener("click", () => preview(item, entries));
+    open.addEventListener("click", () => preview(item, visibleEntries));
     const download = document.createElement("a");
     download.className = "inbox-download";
     download.href = fileAddress(item);
@@ -289,8 +302,10 @@ function renderFolderTree(data) {
   $("inbox-sidebar").hidden = false;
 }
 
-async function loadFolder(target = folder, offsetPage = page, historyMode, filters = { query, fileType }) {
+async function loadFolder(target = folder, offsetPage = 0, historyMode, filters = { query, fileType }) {
   const sequence = ++listing;
+  showMore(false);
+  moreRetry.hidden = true;
   const timeout = AbortSignal.timeout(15000);
   let data;
   try {
@@ -300,10 +315,28 @@ async function loadFolder(target = folder, offsetPage = page, historyMode, filte
     data = await response.json();
   } catch (error) {
     if (sequence !== listing) return;
+    if (hasMore && error.status !== 404) {
+      if (offsetPage > 0) moreRetry.hidden = false;
+      else showMore(true);
+    }
     if (timeout.aborted) throw new Error(translate("文件夹加载超时，请重试。"));
     throw error;
   }
   if (sequence !== listing) return;
+  const grid = $("inbox-entries");
+  if (offsetPage > 0) {
+    const rows = document.createDocumentFragment();
+    const existing = new Set(visibleEntries.map(item => item.id));
+    const added = data.entries.filter(item => !existing.has(item.id));
+    visibleEntries.push(...added);
+    for (const item of added) rows.append(renderEntry(item));
+    covers.observe(rows);
+    grid.append(rows);
+    page = offsetPage;
+    hasMore = data.hasMore;
+    showMore(hasMore);
+    return;
+  }
   if (historyMode === "push") history.pushState(null, "", folderAddress(target));
   if (folder !== target || page !== offsetPage || query !== filters.query || fileType !== filters.fileType) {
     panel.querySelector(".file-scroll").scrollTop = 0;
@@ -321,16 +354,14 @@ async function loadFolder(target = folder, offsetPage = page, historyMode, filte
   $("inbox-title").title = data.name;
   renderBreadcrumbs(data);
   if (data.folders) renderFolderTree(data);
-  const grid = $("inbox-entries");
-  stopCovers?.();
-  grid.replaceChildren(...data.entries.map(item => renderEntry(item, data.entries)));
-  stopCovers = observeCovers(grid);
+  visibleEntries = data.entries;
+  covers?.disconnect();
+  grid.replaceChildren(...visibleEntries.map(renderEntry));
+  covers = observeCovers(grid);
   $("inbox-empty").hidden = data.entries.length > 0;
   localizeValue($("inbox-empty"), () => translate(query || fileType ? "没有找到匹配的文件或文件夹。" : "这个文件夹还没有文件。"));
-  $("inbox-pagination").hidden = !page && !data.hasMore;
-  $("inbox-previous").disabled = page === 0;
-  $("inbox-next").disabled = !data.hasMore;
-  localizeValue($("inbox-page"), () => translate("第 {page} 页", { page: page + 1 }));
+  hasMore = data.hasMore;
+  showMore(hasMore);
   form.hidden = false;
   $("inbox-search").hidden = false;
 }
@@ -374,9 +405,12 @@ function folderError(error) {
     $("inbox-sidebar").hidden = true;
     form.hidden = true;
     $("inbox-search").hidden = true;
-    stopCovers?.();
+    covers?.disconnect();
+    hasMore = false;
+    showMore(false);
+    moreRetry.hidden = true;
     $("inbox-entries").replaceChildren();
-    $("inbox-empty").hidden = $("inbox-pagination").hidden = true;
+    $("inbox-empty").hidden = true;
   }
 }
 
@@ -571,12 +605,11 @@ $("inbox-query").addEventListener("compositionstart", () => clearTimeout(searchT
 $("inbox-query").addEventListener("compositionend", scheduleSearch);
 $("inbox-type").addEventListener("change", applyFilters);
 
-$("inbox-previous").addEventListener("click", () => {
-  if (!navigating && !submit.disabled) loadFolder(folder, page - 1).catch(folderError);
-});
-$("inbox-next").addEventListener("click", () => {
-  if (!navigating && !submit.disabled) loadFolder(folder, page + 1).catch(folderError);
-});
+async function loadMore() {
+  if (!hasMore) return;
+  await loadFolder(folder, page + 1).catch(folderError);
+}
+moreRetry.addEventListener("click", loadMore);
 
 const startError = $("inbox-start-error");
 const startMessage = $("inbox-start-message");

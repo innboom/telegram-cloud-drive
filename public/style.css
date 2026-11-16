@@ -468,7 +468,8 @@ button.mkdir-button, #search > .mkdir-button { display: grid; place-items: cente
 .video-cover::before, .video-cover::after { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
 .video-cover::before { width: var(--play-size); height: var(--play-size); border-radius: 50%; background: #54575be8; }
 .video-cover::after { width: var(--play-triangle); height: var(--play-triangle); background: white; clip-path: polygon(20% 0, 100% 50%, 20% 100%); }
-#inbox-pagination { justify-content: flex-end; margin-top: 8px; }
+#inbox-more { height: 1px; }
+#inbox-more-retry { display: block; margin: 8px auto; }
 #inbox-status { white-space: pre-line; overflow-wrap: anywhere; }
 #inbox-status:not(:empty) { margin-top: 16px; }
 #notice:empty { display: none; }

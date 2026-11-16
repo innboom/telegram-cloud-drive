@@ -120,7 +120,7 @@ function loggedOut() {
   expandedFolders.clear();
   setBranchExpanded($("root-toggle"), $("folder-tree"), "", true);
   resetFilters();
-  stopCovers?.();
+  stopCovers?.disconnect();
   stopCovers = undefined;
   $("entries").replaceChildren();
   $("folder-tree").replaceChildren();
@@ -770,7 +770,7 @@ async function refresh(focus = null) {
   }
   crumbs.scrollLeft = crumbs.scrollWidth;
   const entries = $("entries");
-  stopCovers?.();
+  stopCovers?.disconnect();
   visibleEntries = result.entries;
   entries.replaceChildren(...visibleEntries.map(item => renderItem(item, visibleEntries)));
   updateBatchControls();
