@@ -150,7 +150,9 @@ function resetFilters() {
   clearTimeout(searchTimer);
   query = tag = fileType = "";
   page = 0;
+  const sort = searchForm.elements.sort.value;
   searchForm.reset();
+  searchForm.elements.sort.value = sort;
 }
 
 async function goRoot() {
@@ -739,7 +741,7 @@ function renderItem(item, entries) {
 async function refresh(focus = null) {
   const sequence = ++listing;
   const params = new URLSearchParams({
-    parent: currentFolder(), q: query, tag, type: fileType, sort: "created-desc", offset: page * pageSize
+    parent: currentFolder(), q: query, tag, type: fileType, sort: searchForm.elements.sort.value, offset: page * pageSize
   });
   if (focus) params.set("focus", focus);
   const result = await api("/api/entries?" + params);
@@ -984,6 +986,7 @@ for (const input of searchForm.querySelectorAll('input[type="search"]')) {
   input.addEventListener("compositionend", scheduleSearch);
 }
 $("file-type").addEventListener("change", () => searchForm.requestSubmit());
+searchForm.elements.sort.addEventListener("change", () => searchForm.requestSubmit());
 $("new-folder").addEventListener("click", action(async () => {
   const name = prompt(translate("目录名称"));
   if (name === null) return;

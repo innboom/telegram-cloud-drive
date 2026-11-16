@@ -60,6 +60,14 @@
             <button type="button" data-view="list" aria-pressed="true">列表</button>
             <button type="button" data-view="grid" aria-pressed="false">网格</button>
           </div>
+          <select name="sort" aria-label="排序">
+            <option value="created-desc">创建时间 · 最新</option>
+            <option value="created-asc">创建时间 · 最早</option>
+            <option value="name-asc">名称 · 升序</option>
+            <option value="name-desc">名称 · 降序</option>
+            <option value="size-desc">大小 · 从大到小</option>
+            <option value="size-asc">大小 · 从小到大</option>
+          </select>
           <select id="file-type" name="type" aria-label="文件类型">
             <option value="">全部类型</option>
             <option value="folder">文件夹</option>

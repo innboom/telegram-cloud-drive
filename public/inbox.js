@@ -12,6 +12,7 @@ localizeDrive();
 const code = location.pathname.match(/^\/s\/([a-zA-Z0-9_-]{12})$/)?.[1];
 let folder = new URLSearchParams(location.search).get("folder");
 const form = $("inbox-form");
+const sortSelect = $("inbox-search").elements.sort;
 const note = $("inbox-note");
 const sendNote = $("inbox-send-note");
 const panel = $("inbox-panel");
@@ -30,6 +31,7 @@ let maxUploadMiB;
 let listing = 0;
 let query = "";
 let fileType = "";
+let sort = sortSelect.value;
 let navigating = false;
 let searchTimer;
 let treeSnapshot;
@@ -302,7 +304,7 @@ function renderFolderTree(data) {
   $("inbox-sidebar").hidden = false;
 }
 
-async function loadFolder(target = folder, offsetPage = 0, historyMode, filters = { query, fileType }) {
+async function loadFolder(target = folder, offsetPage = 0, historyMode, filters = { query, fileType, sort }) {
   const sequence = ++listing;
   showMore(false);
   moreRetry.hidden = true;
@@ -310,7 +312,7 @@ async function loadFolder(target = folder, offsetPage = 0, historyMode, filters 
   let data;
   try {
     const response = await request(folderQuery({
-      offset: offsetPage * pageSize, q: filters.query, sort: "created-desc", type: filters.fileType
+      offset: offsetPage * pageSize, q: filters.query, sort: filters.sort, type: filters.fileType
     }, target), { signal: timeout });
     data = await response.json();
   } catch (error) {
@@ -338,13 +340,14 @@ async function loadFolder(target = folder, offsetPage = 0, historyMode, filters 
     return;
   }
   if (historyMode === "push") history.pushState(null, "", folderAddress(target));
-  if (folder !== target || page !== offsetPage || query !== filters.query || fileType !== filters.fileType) {
+  if (folder !== target || page !== offsetPage || query !== filters.query || fileType !== filters.fileType || sort !== filters.sort) {
     panel.querySelector(".file-scroll").scrollTop = 0;
   }
-  ({ query, fileType } = filters);
+  ({ query, fileType, sort } = filters);
   if (historyMode) {
     $("inbox-query").value = query;
     $("inbox-type").value = fileType;
+    sortSelect.value = sort;
   }
   folder = target;
   page = offsetPage;
@@ -373,7 +376,7 @@ async function navigateFolder(target, historyMode) {
   loading.hidden = false;
   const expected = listing + 1;
   try {
-    await loadFolder(target, 0, historyMode, { query: "", fileType: "" });
+    await loadFolder(target, 0, historyMode, { query: "", fileType: "", sort });
   } catch (error) {
     if (historyMode === "pop") history.replaceState(null, "", folderAddress(folder));
     clearLocalizedValue(status);
@@ -586,7 +589,7 @@ function applyFilters() {
   clearTimeout(searchTimer);
   if (navigating || submit.disabled || form.hidden) return;
   loadFolder(folder, 0, undefined, {
-    query: $("inbox-query").value.trim(), fileType: $("inbox-type").value
+    query: $("inbox-query").value.trim(), fileType: $("inbox-type").value, sort: sortSelect.value
   }).catch(folderError);
 }
 
@@ -604,6 +607,7 @@ $("inbox-query").addEventListener("input", event => {
 $("inbox-query").addEventListener("compositionstart", () => clearTimeout(searchTimer));
 $("inbox-query").addEventListener("compositionend", scheduleSearch);
 $("inbox-type").addEventListener("change", applyFilters);
+sortSelect.addEventListener("change", applyFilters);
 
 async function loadMore() {
   if (!hasMore) return;
