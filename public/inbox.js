@@ -108,9 +108,10 @@ function renderEntry(item) {
   const row = document.createElement("li");
   const isFolder = item.kind === "folder";
   const type = previewType(item);
-  const open = document.createElement(isFolder ? "a" : "button");
+  const open = document.createElement("a");
   open.className = "inbox-tile";
   open.title = item.name;
+  open.href = isFolder ? folderAddress(item.folder_code) : previewAddress(item);
   const icon = document.createElement("span");
   icon.className = "inbox-icon " + (isFolder ? "icon-folder" : "inbox-file-art");
   if (!isFolder) icon.append(fileIcon(item.name, type));
@@ -171,11 +172,13 @@ function renderEntry(item) {
   open.append(art, info);
   row.append(open);
   if (isFolder) {
-    open.href = folderAddress(item.folder_code);
     open.dataset.folderLink = "";
   } else {
-    open.type = "button";
-    open.addEventListener("click", () => preview(item, visibleEntries));
+    open.addEventListener("click", event => {
+      if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      preview(item, visibleEntries);
+    });
     const download = document.createElement("a");
     download.className = "inbox-download";
     download.href = fileAddress(item);
