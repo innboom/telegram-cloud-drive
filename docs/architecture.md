@@ -35,6 +35,8 @@ D1 的 `entries` 表保存文件和目录。根级项目的 `parent_id` 为 `NUL
 | `share_code`、`share_expires_at` | 12 位短码及到期时间，永久分享的到期时间为 `NULL` |
 | `created_at`、`deleted_at` | 创建和软删除时间 |
 
+D1 的 `folder_file_links` 表为公开目录中的文件保存独立的 18 字符短码。短码按目录分享和文件分配，首次列出时生成。同一分享下重新打开同一文件会沿用该短码。
+
 KV 使用 `site:config` 保存 `title`、`description`、`maxUploadMiB` 和 `externalUploadEnabled`。旧配置缺少开关时按关闭处理，无需新建 KV 绑定或手动迁移。运行时密钥由 Worker 环境提供。
 
 首次访问数据库相关接口时会初始化表。升级旧版 D1 时，Worker 会补齐仍有效分享的短码、保留已有短码和有效期，然后移除旧的 `share_token` 字段。
@@ -43,7 +45,7 @@ KV 使用 `site:config` 保存 `title`、`description`、`maxUploadMiB` 和 `ext
 
 - **上传**。浏览器按文件提交请求。Worker 校验目标目录和单文件大小，通过 Telegram `sendDocument` 存入频道，再写入 D1。文件夹上传先建目录，再逐个上传文件。
 - **下载**。Worker 从 D1 查到 `file_id`，调用 Telegram `getFile`，然后将文件响应转发给浏览器。Telegram Bot Token 保留在服务端。
-- **分享**。`/s/<code>` 校验短码和有效期。访问公开目录内的子项目时，Worker 校验目标是否属于该公开目录。撤销分享会清除短码。
+- **分享**。公开目录、单独分享的文件和随目录公开的文件都通过 `/s/<code>` 打开。随目录公开的文件沿用目录分享的有效期和访问范围，撤销目录分享或把文件移出该目录后，对应的文件短链会失效。旧式 `/s/<目录短码>?file=<文件 ID>` 返回 404。
 - **删除**。先在 D1 软删除项目及子项目并撤销分享，再尝试同步删除 Telegram 原消息。Telegram 对消息删除有时间及权限限制，管理端会提示未确认删除的数量。[Telegram Bot API](https://core.telegram.org/bots/api#deletemessage)
 
 ## HTTP 接口
@@ -66,8 +68,7 @@ KV 使用 `site:config` 保存 `title`、`description`、`maxUploadMiB` 和 `ext
 | GET | `/api/inbox/<code>?folder=<id>&offset=<n>` | 浏览公开目录 |
 | POST | `/api/inbox/<code>?folder=<id>&name=<name>` | 访客上传文件 |
 | POST | `/api/inbox/<code>?folder=<id>&action=mkdir` | 访客新建目录，JSON 正文包含 `name` |
-| GET | `/api/inbox/<code>/<id>/download` | 下载公开目录内的文件 |
-| GET | `/api/share/<code>/download` | 下载单独分享的文件 |
+| GET | `/api/share/<code>/download` | 通过文件短码下载公开文件 |
 
 公开目录请求省略 `folder` 时，使用该分享的根目录。
 

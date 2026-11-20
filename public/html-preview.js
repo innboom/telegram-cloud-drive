@@ -39,8 +39,7 @@ function downloadFallback(message, url, name) {
 async function loadPreview() {
   const params = new URLSearchParams(location.search);
   const id = params.get("id");
-  const code = location.pathname.match(/^\/s\/([a-zA-Z0-9_-]{12})$/)?.[1];
-  const file = params.get("file");
+  const code = location.pathname.match(/^\/s\/([a-zA-Z0-9_-]{12}|[a-f0-9]{18})$/)?.[1];
   if (!code && location.hash) throw new Error("分享链接已失效，请索取新的短链接。");
   if (!code && !/^[a-f0-9-]{36}$/.test(id ?? "")) throw new Error("文件地址无效。");
   const publicAccess = Boolean(code);
@@ -48,7 +47,7 @@ async function loadPreview() {
   if (!publicAccess && !token) throw new Error("请登录云盘后重新打开该文件。");
 
   const path = code
-    ? file ? "/api/inbox/" + code + "/" + encodeURIComponent(file) + "/download" : "/api/share/" + code + "/download"
+    ? "/api/share/" + code + "/download"
     : "/api/entries/" + id + "/download";
   const options = publicAccess ? { credentials: "omit" } : { headers: { Authorization: "Bearer " + token } };
   const response = await fetch(path, { ...options, priority: "high", signal: downloadTimeout });

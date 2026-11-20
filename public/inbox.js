@@ -78,7 +78,7 @@ async function request(path, options) {
 }
 
 function fileAddress(item) {
-  return endpoint + "/" + encodeURIComponent(item.id) + "/download";
+  return "/api/share/" + item.folder_file_code + "/download";
 }
 
 async function downloadFile(item) {
@@ -95,9 +95,7 @@ async function downloadFile(item) {
 }
 
 function previewAddress(item) {
-  const url = new URL(location.pathname, location.origin);
-  url.searchParams.set("file", item.id);
-  return url.href;
+  return new URL("/s/" + item.folder_file_code, location.origin).href;
 }
 
 const preview = createMediaPreview($("inbox-preview"), {

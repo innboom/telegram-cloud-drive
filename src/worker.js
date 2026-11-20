@@ -9,6 +9,8 @@ const imageTypes = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"
 const columns = "id, parent_id, kind, name, mime, size, tags, share_code, share_expires_at, created_at";
 const activeShare = "(share_expires_at IS NULL OR share_expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))";
 const shareDurations = new Set([3600, 86400, 604800, 2592000]);
+const shortSharePath = /^\/s\/([a-zA-Z0-9_-]{12}|[a-f0-9]{18})$/;
+const shareDownloadPath = /^\/api\/share\/([a-zA-Z0-9_-]{12}|[a-f0-9]{18})\/download$/;
 
 function inboxContains(folder, code) {
   return `EXISTS (
@@ -131,6 +133,12 @@ async function database(env) {
     }
     if (fields.some(({ name }) => name === "share_token")) await migrateShareCodes(db);
   }
+  await db.prepare(`CREATE TABLE IF NOT EXISTS folder_file_links (
+    folder_code TEXT NOT NULL,
+    file_id TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(9)))),
+    PRIMARY KEY (folder_code, file_id)
+  )`).run();
   return db;
 }
 
@@ -204,6 +212,44 @@ function entryTypeFilter(type, firstParameter) {
   return { sql: `kind = 'file' AND (${sql})`, values };
 }
 
+async function addFolderFileCodes(db, entries, folderCode = null) {
+  const fileIds = entries.filter(entry => entry.kind === "file").map(entry => entry.id);
+  if (!fileIds.length) return entries;
+  const ids = JSON.stringify(fileIds);
+  const scopes = folderCode === null ? `
+    SELECT file.id AS file_id, (
+      WITH RECURSIVE ancestors(id, parent_id, depth) AS (
+        SELECT id, parent_id, 0 FROM entries
+        WHERE id = file.parent_id AND kind = 'folder' AND deleted_at IS NULL
+        UNION ALL
+        SELECT e.id, e.parent_id, a.depth + 1 FROM entries e JOIN ancestors a ON e.id = a.parent_id
+        WHERE e.kind = 'folder' AND e.deleted_at IS NULL
+      )
+      SELECT share_code FROM ancestors a JOIN entries USING (id)
+      WHERE share_code IS NOT NULL AND ${activeShare} ORDER BY a.depth LIMIT 1
+    ) AS folder_code
+    FROM entries file JOIN json_each(?1) ids ON file.id = ids.value
+  ` : "SELECT value AS file_id, ?2 AS folder_code FROM json_each(?1)";
+  const { results: links } = await db.prepare(`SELECT scope.file_id, scope.folder_code, link.code
+    FROM (${scopes}) scope LEFT JOIN folder_file_links link USING (folder_code, file_id)
+    WHERE scope.folder_code IS NOT NULL`).bind(...(folderCode === null ? [ids] : [ids, folderCode])).all();
+  const codes = new Map(links.filter(link => link.code).map(link => [link.file_id, link.code]));
+  const missing = links.filter(link => !link.code);
+  if (missing.length) {
+    const pairs = `SELECT json_extract(value, '$.folder_code') AS folder_code,
+      json_extract(value, '$.file_id') AS file_id FROM json_each(?1)`;
+    const pending = JSON.stringify(missing);
+    const [, { results }] = await db.batch([
+      db.prepare(`INSERT INTO folder_file_links (folder_code, file_id)
+        ${pairs} WHERE true ON CONFLICT (folder_code, file_id) DO NOTHING`).bind(pending),
+      db.prepare(`SELECT link.file_id, link.code FROM (${pairs}) pending
+        JOIN folder_file_links link USING (folder_code, file_id)`).bind(pending)
+    ]);
+    for (const link of results) codes.set(link.file_id, link.code);
+  }
+  return entries.map(entry => codes.has(entry.id) ? { ...entry, folder_file_code: codes.get(entry.id) } : entry);
+}
+
 async function list(db, url) {
   const q = (url.searchParams.get("q") ?? "").trim().slice(0, 120);
   const tag = (url.searchParams.get("tag") ?? "").trim().slice(0, 24);
@@ -241,8 +287,9 @@ async function list(db, url) {
   const { results } = await db.prepare(
     `SELECT ${columns} FROM entries WHERE ${where} ORDER BY ${sortOrder} LIMIT 51 OFFSET ?`
   ).bind(...parameters, offset).all();
+  const entries = await addFolderFileCodes(db, results.slice(0, 50));
   return json({
-    entries: results.slice(0, 50).map((entry) => ({ ...entry, tags: JSON.parse(entry.tags) })),
+    entries: entries.map((entry) => ({ ...entry, tags: JSON.parse(entry.tags) })),
     hasMore: results.length > 50,
     ...(focus ? { offset } : {})
   });
@@ -504,7 +551,8 @@ async function publicFolder(request, db, env, url, code, root) {
     ORDER BY kind DESC, ${order}, id LIMIT 51 OFFSET ?3`).bind(id, code, offset, query, ...filter.values);
   if (offset > 0 && url.searchParams.get("tree") === "0") {
     const { results } = await entriesQuery.all();
-    return json({ entries: results.slice(0, 50), hasMore: results.length > 50 });
+    const entries = await addFolderFileCodes(db, results.slice(0, 50), code);
+    return json({ entries, hasMore: results.length > 50 });
   }
   const treeQuery = db.prepare(`WITH RECURSIVE tree(id, parent_id, name) AS (
     SELECT id, NULL, name FROM entries WHERE id = ?1 AND share_code = ?2 AND deleted_at IS NULL AND ${activeShare}
@@ -516,13 +564,23 @@ async function publicFolder(request, db, env, url, code, root) {
     db.batch([entriesQuery, treeQuery]),
     getConfig(env)
   ]);
+  const entries = await addFolderFileCodes(db, results.slice(0, 50), code);
   return json({ name: folder.name, parent: folder.parent_id ?? null, root: id === root.id,
-    entries: results.slice(0, 50), folders, rootId: root.id, hasMore: results.length > 50, maxUploadMiB });
+    entries, folders, rootId: root.id, hasMore: results.length > 50, maxUploadMiB });
 }
 
 async function activeShortShare(db, code) {
   const item = await db.prepare(`SELECT id, kind, name, mime FROM entries
     WHERE share_code = ? AND deleted_at IS NULL AND ${activeShare}`).bind(code).first();
+  if (!item) throw new HttpError(404, "分享链接已失效");
+  return item;
+}
+
+async function activeFolderFile(db, code) {
+  const item = await db.prepare(`SELECT link.folder_code, item.id, item.name, item.mime
+    FROM folder_file_links link JOIN entries item ON item.id = link.file_id
+    WHERE link.code = ?1 AND item.kind = 'file' AND item.deleted_at IS NULL
+    AND ${inboxContains("item.parent_id", "link.folder_code")}`).bind(code).first();
   if (!item) throw new HttpError(404, "分享链接已失效");
   return item;
 }
@@ -569,36 +627,31 @@ async function handle(request, env) {
   if (pathname === "/api/config" && method === "GET") return json(await getConfig(env));
   if (pathname === "/api/health" && method === "GET") return json({ status: "ok" });
   if (pathname === "/api/external/upload" && method === "POST") return externalUpload(request, env, url);
-  const shortShare = pathname.match(/^\/s\/([a-zA-Z0-9_-]{12})$/);
+  const shortShare = pathname.match(shortSharePath);
   if (shortShare && method === "GET") {
+    if (url.searchParams.has("file")) throw new HttpError(404, "分享链接已失效，请索取新的短链接");
+    const code = shortShare[1];
     const db = await database(env);
-    const item = await activeShortShare(db, shortShare[1]);
-    const file = url.searchParams.get("file");
-    if (item.kind === "folder") {
-      if (!file) return sharePage(env, url, "/inbox");
-      if (!/^[a-f0-9-]{36}$/.test(file)) throw new HttpError(404, "文件不存在");
-      const entry = await db.prepare(`SELECT name, mime FROM entries AS item
-        WHERE id = ?1 AND kind = 'file' AND deleted_at IS NULL AND ${inboxContains("item.parent_id", "?2")}`)
-        .bind(file, shortShare[1]).first();
-      if (!entry) throw new HttpError(404, "文件不存在");
-      if (previewType(entry)) return sharePage(env, url, "/html-preview");
-      return content(db, env, "id", file, false, shortShare[1]);
+    if (code.length === 18) {
+      const item = await activeFolderFile(db, code);
+      if (previewType(item)) return sharePage(env, url, "/html-preview");
+      return content(db, env, "id", item.id, false, item.folder_code);
     }
-    if (file) throw new HttpError(404, "文件不存在");
+    const item = await activeShortShare(db, code);
+    if (item.kind === "folder") return sharePage(env, url, "/inbox");
     const type = previewType(item);
     if (type && !imageTypes.has(type)) return sharePage(env, url, "/html-preview");
-    return content(db, env, "share_code", shortShare[1], true);
+    return content(db, env, "share_code", code, true);
   }
-  const sharedFile = pathname.match(/^\/api\/share\/([a-zA-Z0-9_-]{12})\/download$/);
+  const sharedFile = pathname.match(shareDownloadPath);
   if (sharedFile && method === "GET") {
-    return content(await database(env), env, "share_code", sharedFile[1], false);
-  }
-  const inboxFile = pathname.match(/^\/api\/inbox\/([a-zA-Z0-9_-]{12})\/([a-f0-9-]{36})\/download$/);
-  if (inboxFile && method === "GET") {
+    const code = sharedFile[1];
     const db = await database(env);
-    const item = await activeShortShare(db, inboxFile[1]);
-    if (item.kind !== "folder") throw new HttpError(404, "分享链接已失效");
-    return content(db, env, "id", inboxFile[2], false, inboxFile[1]);
+    if (code.length === 18) {
+      const item = await activeFolderFile(db, code);
+      return content(db, env, "id", item.id, false, item.folder_code);
+    }
+    return content(db, env, "share_code", code, false);
   }
   const inbox = pathname.match(/^\/api\/inbox\/([a-zA-Z0-9_-]{12})$/);
   if (inbox && (method === "GET" || method === "POST")) {

@@ -367,11 +367,8 @@ function previewAddress(item) {
   if (item.share_code && !shareExpired(item)) {
     return shareAddress(item);
   }
-  const sharedFolder = folderPath(item.parent_id).findLast((folder) => folder.share_code && !shareExpired(folder));
-  if (sharedFolder) {
-    const url = new URL(shareAddress(sharedFolder));
-    url.searchParams.set("file", item.id);
-    return url.href;
+  if (item.folder_file_code) {
+    return shareAddress({ share_code: item.folder_file_code });
   }
   const url = new URL("/html-preview", location.origin);
   url.searchParams.set("id", item.id);
