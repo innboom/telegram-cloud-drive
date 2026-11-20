@@ -10,8 +10,7 @@ import { createUploadFeedback, droppedItems, pastedFiles, selectedDirectoryItems
 
 const $ = (id) => document.getElementById(id);
 localizeDrive();
-const code = location.pathname.match(/^\/s\/([a-zA-Z0-9_-]{12})$/)?.[1];
-let folder = new URLSearchParams(location.search).get("folder");
+let folderCode = folderCodeFromPath(location.pathname);
 const form = $("inbox-form");
 const sortSelect = $("inbox-search").elements.sort;
 const note = $("inbox-note");
@@ -23,7 +22,6 @@ const directoryInput = $("inbox-directory");
 const chooseDirectory = $("inbox-choose-directory");
 const mkdir = $("inbox-mkdir");
 const status = $("inbox-status");
-const endpoint = "/api/inbox/" + code;
 const pageSize = 50;
 let page = 0;
 let visibleEntries = [];
@@ -55,16 +53,16 @@ bindViewSwitch(viewSwitch, "cloud-drive-inbox-view", "grid", (view) => {
   $("inbox-entries").classList.toggle("inbox-list", view === "list");
 });
 
-function folderAddress(id) {
-  const url = new URL(location.pathname, location.origin);
-  if (id) url.searchParams.set("folder", id);
-  return url.href;
+function folderCodeFromPath(pathname) {
+  return pathname.match(/^\/s\/([a-zA-Z0-9_-]{12}|[a-f0-9]{18})$/)?.[1];
 }
 
-function folderQuery(fields, target = folder) {
-  const params = new URLSearchParams(fields);
-  if (target) params.set("folder", target);
-  return endpoint + "?" + params;
+function folderAddress(code) {
+  return "/s/" + code;
+}
+
+function folderQuery(fields, target = folderCode) {
+  return "/api/inbox/" + target + "?" + new URLSearchParams(fields);
 }
 
 async function request(path, options) {
@@ -173,7 +171,7 @@ function renderEntry(item) {
   open.append(art, info);
   row.append(open);
   if (isFolder) {
-    open.href = folderAddress(item.id);
+    open.href = folderAddress(item.folder_code);
     open.dataset.folderLink = "";
   } else {
     open.type = "button";
@@ -201,7 +199,7 @@ function renderBreadcrumbs(data) {
     const item = byId.get(id);
     const crumb = document.createElement("li");
     const link = document.createElement("a");
-    link.href = folderAddress(id === data.rootId ? null : id);
+    link.href = folderAddress(item.folder_code);
     link.dataset.folderLink = "";
     link.textContent = item.name;
     link.title = item.name;
@@ -232,7 +230,7 @@ function renderBreadcrumbs(data) {
 function renderFolderTree(data) {
   const tree = $("inbox-tree");
   const children = new Map();
-  const current = folder || data.rootId;
+  const current = data.id;
   const byId = new Map(data.folders.map(item => [item.id, item]));
   const ancestors = new Set();
   for (let item = byId.get(current); item && !ancestors.has(item.id); item = byId.get(item.parent_id)) {
@@ -283,7 +281,7 @@ function renderFolderTree(data) {
       link.className = "tree-folder";
       link.dataset.folderId = item.id;
       link.dataset.folderLink = "";
-      link.href = folderAddress(item.id === data.rootId ? null : item.id);
+      link.href = folderAddress(item.folder_code);
       link.title = item.name;
       if (item.id === current) link.setAttribute("aria-current", "location");
       const icon = document.createElement("span");
@@ -303,7 +301,7 @@ function renderFolderTree(data) {
   $("inbox-sidebar").hidden = false;
 }
 
-async function loadFolder(target = folder, offsetPage = 0, historyMode, filters = { query, fileType, sort }) {
+async function loadFolder(target = folderCode, offsetPage = 0, historyMode, filters = { query, fileType, sort }) {
   const sequence = ++listing;
   showMore(false);
   moreRetry.hidden = true;
@@ -340,7 +338,7 @@ async function loadFolder(target = folder, offsetPage = 0, historyMode, filters 
     return;
   }
   if (historyMode === "push") history.pushState(null, "", folderAddress(target));
-  if (folder !== target || page !== offsetPage || query !== filters.query || fileType !== filters.fileType || sort !== filters.sort) {
+  if (folderCode !== target || page !== offsetPage || query !== filters.query || fileType !== filters.fileType || sort !== filters.sort) {
     panel.querySelector(".file-scroll").scrollTop = 0;
   }
   ({ query, fileType, sort } = filters);
@@ -349,7 +347,7 @@ async function loadFolder(target = folder, offsetPage = 0, historyMode, filters 
     $("inbox-type").value = fileType;
     sortSelect.value = sort;
   }
-  folder = target;
+  folderCode = target;
   page = offsetPage;
   maxUploadMiB = data.maxUploadMiB;
   document.title = data.name;
@@ -378,7 +376,7 @@ async function navigateFolder(target, historyMode) {
   try {
     await loadFolder(target, 0, historyMode, { query: "", fileType: "", sort });
   } catch (error) {
-    if (historyMode === "pop") history.replaceState(null, "", folderAddress(folder));
+    if (historyMode === "pop") history.replaceState(null, "", folderAddress(folderCode));
     clearLocalizedValue(status);
     status.textContent = error.message;
   } finally {
@@ -394,11 +392,12 @@ panel.addEventListener("click", event => {
   if (!link || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
   event.preventDefault();
   if (submit.disabled) return;
-  const target = new URL(link.href).searchParams.get("folder");
-  if (target !== folder || navigating) void navigateFolder(target, "push");
+  const target = folderCodeFromPath(new URL(link.href).pathname);
+  if (target && (target !== folderCode || navigating)) void navigateFolder(target, "push");
 });
 window.addEventListener("popstate", () => {
-  void navigateFolder(new URLSearchParams(location.search).get("folder"), "pop");
+  const target = folderCodeFromPath(location.pathname);
+  if (target) void navigateFolder(target, "pop");
 });
 
 function folderError(error) {
@@ -417,13 +416,13 @@ function folderError(error) {
   }
 }
 
-async function createFolder(name, target = folder) {
+async function createFolder(name, target = folderCode) {
   const response = await request(folderQuery({ action: "mkdir" }, target), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name })
   });
-  return (await response.json()).id;
+  return (await response.json()).folder_code;
 }
 
 function setUploadBusy(busy) {
@@ -438,7 +437,7 @@ function updateSendNote() {
 
 async function uploadItems(items) {
   if (form.hidden || submit.disabled || navigating) return;
-  const uploadFolder = folder;
+  const uploadFolder = folderCode;
   setUploadBusy(true);
   const feedback = createUploadFeedback($("inbox-progress"), translate);
   clearLocalizedValue(status);
@@ -447,10 +446,10 @@ async function uploadItems(items) {
   let index = 0;
   let created = 0;
   const failures = [];
-  const ensurePath = uploadDirectories(folder, async (name, target) => {
-    const id = await createFolder(name, target);
+  const ensurePath = uploadDirectories(uploadFolder, async (name, target) => {
+    const code = await createFolder(name, target);
     created += 1;
-    return id;
+    return code;
   });
   try {
     items = await items;
@@ -472,7 +471,7 @@ async function uploadItems(items) {
       } catch (error) {
         failures.push([...path, ...(file ? [file.name] : [])].join("/") + " · " + error.message);
         if (error.status === 404) {
-          if (folder === uploadFolder && !navigating) folderError(error);
+          if (folderCode === uploadFolder && !navigating) folderError(error);
           break;
         }
       }
@@ -590,7 +589,7 @@ window.addEventListener("drop", (event) => {
 function applyFilters() {
   clearTimeout(searchTimer);
   if (navigating || submit.disabled || form.hidden) return;
-  loadFolder(folder, 0, undefined, {
+  loadFolder(folderCode, 0, undefined, {
     query: $("inbox-query").value.trim(), fileType: $("inbox-type").value, sort: sortSelect.value
   }).catch(folderError);
 }
@@ -613,7 +612,7 @@ sortSelect.addEventListener("change", applyFilters);
 
 async function loadMore() {
   if (!hasMore) return;
-  await loadFolder(folder, page + 1).catch(folderError);
+  await loadFolder(folderCode, page + 1).catch(folderError);
 }
 moreRetry.addEventListener("click", loadMore);
 
@@ -634,7 +633,7 @@ async function openSharedFolder() {
 }
 
 retry.addEventListener("click", openSharedFolder);
-if (code) {
+if (folderCode) {
   void openSharedFolder();
 } else {
   localizeValue(startMessage, () => translate("公开文件夹链接已失效，请索取新的短链接。"));

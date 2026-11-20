@@ -11,6 +11,7 @@ const activeShare = "(share_expires_at IS NULL OR share_expires_at > strftime('%
 const shareDurations = new Set([3600, 86400, 604800, 2592000]);
 const shortSharePath = /^\/s\/([a-zA-Z0-9_-]{12}|[a-f0-9]{18})$/;
 const shareDownloadPath = /^\/api\/share\/([a-zA-Z0-9_-]{12}|[a-f0-9]{18})\/download$/;
+const inboxPath = /^\/api\/inbox\/([a-zA-Z0-9_-]{12}|[a-f0-9]{18})$/;
 
 function inboxContains(folder, code) {
   return `EXISTS (
@@ -133,6 +134,7 @@ async function database(env) {
     }
     if (fields.some(({ name }) => name === "share_token")) await migrateShareCodes(db);
   }
+  // Keep the existing table and file short codes when adding links for subfolders.
   await db.prepare(`CREATE TABLE IF NOT EXISTS folder_file_links (
     folder_code TEXT NOT NULL,
     file_id TEXT NOT NULL,
@@ -212,10 +214,10 @@ function entryTypeFilter(type, firstParameter) {
   return { sql: `kind = 'file' AND (${sql})`, values };
 }
 
-async function addFolderFileCodes(db, entries, folderCode = null) {
-  const fileIds = entries.filter(entry => entry.kind === "file").map(entry => entry.id);
-  if (!fileIds.length) return entries;
-  const ids = JSON.stringify(fileIds);
+async function addFolderEntryCodes(db, entries, folderCode = null) {
+  const eligible = folderCode === null ? entries.filter(entry => entry.kind === "file") : entries;
+  if (!eligible.length) return entries;
+  const ids = JSON.stringify(eligible.map(entry => entry.id));
   const scopes = folderCode === null ? `
     SELECT file.id AS file_id, (
       WITH RECURSIVE ancestors(id, parent_id, depth) AS (
@@ -247,7 +249,11 @@ async function addFolderFileCodes(db, entries, folderCode = null) {
     ]);
     for (const link of results) codes.set(link.file_id, link.code);
   }
-  return entries.map(entry => codes.has(entry.id) ? { ...entry, folder_file_code: codes.get(entry.id) } : entry);
+  return entries.map(entry => {
+    const code = codes.get(entry.id);
+    if (!code) return entry;
+    return entry.kind === "folder" ? { ...entry, folder_code: code } : { ...entry, folder_file_code: code };
+  });
 }
 
 async function list(db, url) {
@@ -287,7 +293,7 @@ async function list(db, url) {
   const { results } = await db.prepare(
     `SELECT ${columns} FROM entries WHERE ${where} ORDER BY ${sortOrder} LIMIT 51 OFFSET ?`
   ).bind(...parameters, offset).all();
-  const entries = await addFolderFileCodes(db, results.slice(0, 50));
+  const entries = await addFolderEntryCodes(db, results.slice(0, 50));
   return json({
     entries: entries.map((entry) => ({ ...entry, tags: JSON.parse(entry.tags) })),
     hasMore: results.length > 50,
@@ -297,14 +303,24 @@ async function list(db, url) {
 
 async function createEntry(db, { parent, kind, name, mime = null, size = null, fileId = null, messageId = null, chatId = null, inboxCode = null }) {
   const id = crypto.randomUUID();
-  const result = await db.prepare(`INSERT INTO entries
+  const insert = db.prepare(`INSERT INTO entries
     (id, parent_id, kind, name, mime, size, telegram_file_id, telegram_message_id, telegram_chat_id)
     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
     WHERE ?2 IS NULL OR EXISTS (
       SELECT 1 FROM entries WHERE id = ?2 AND kind = 'folder' AND deleted_at IS NULL
       AND (?10 IS NULL OR ${inboxContains("?2", "?10")})
     )`)
-    .bind(id, parent, kind, name, mime, size, fileId, messageId, chatId, inboxCode).run();
+    .bind(id, parent, kind, name, mime, size, fileId, messageId, chatId, inboxCode);
+  if (inboxCode && kind === "folder") {
+    const [, { results }] = await db.batch([
+      insert,
+      db.prepare(`INSERT INTO folder_file_links (folder_code, file_id)
+        SELECT ?1, id FROM entries WHERE id = ?2 RETURNING code`).bind(inboxCode, id)
+    ]);
+    if (!results.length) throw new HttpError(404, "收件链接已失效");
+    return json({ id, folder_code: results[0].code }, 201);
+  }
+  const result = await insert.run();
   if (!result.meta.changes) throw new HttpError(404, inboxCode ? "收件链接已失效" : "目录已不存在");
   return json({ id }, 201);
 }
@@ -527,11 +543,8 @@ async function removeEntry(db, id, env, legacyMode) {
   return json({ removed: results.length, originalConfirmed: confirmed, originalUnconfirmed: files.length - confirmed });
 }
 
-async function publicFolder(request, db, env, url, code, root) {
-  const id = url.searchParams.get("folder") || root.id;
-  const folder = id === root.id ? root : await db.prepare(`SELECT id, name, parent_id FROM entries
-    WHERE id = ?1 AND ${inboxContains("?1", "?2")}`).bind(id, code).first();
-  if (!folder) throw new HttpError(404, "文件夹不存在或已移出公开范围");
+async function publicFolder(request, db, env, url, code, folder) {
+  const { id, root_id: rootId = id } = folder;
   if (request.method === "POST") {
     if (url.searchParams.get("action") === "mkdir") {
       const body = await bodyJson(request);
@@ -551,22 +564,32 @@ async function publicFolder(request, db, env, url, code, root) {
     ORDER BY kind DESC, ${order}, id LIMIT 51 OFFSET ?3`).bind(id, code, offset, query, ...filter.values);
   if (offset > 0 && url.searchParams.get("tree") === "0") {
     const { results } = await entriesQuery.all();
-    const entries = await addFolderFileCodes(db, results.slice(0, 50), code);
+    const entries = await addFolderEntryCodes(db, results.slice(0, 50), code);
     return json({ entries, hasMore: results.length > 50 });
   }
-  const treeQuery = db.prepare(`WITH RECURSIVE tree(id, parent_id, name) AS (
+  const tree = `WITH RECURSIVE tree(id, parent_id, name) AS (
     SELECT id, NULL, name FROM entries WHERE id = ?1 AND share_code = ?2 AND deleted_at IS NULL AND ${activeShare}
     UNION
     SELECT e.id, e.parent_id, e.name FROM entries e JOIN tree ON e.parent_id = tree.id
     WHERE e.kind = 'folder' AND e.deleted_at IS NULL AND e.id <> ?1
-  ) SELECT id, parent_id, name FROM tree ORDER BY name COLLATE NOCASE, id`).bind(root.id, code);
-  const [[{ results }, { results: folders }], { maxUploadMiB }] = await Promise.all([
-    db.batch([entriesQuery, treeQuery]),
+  )`;
+  const createFolderLinks = db.prepare(`${tree}
+    INSERT INTO folder_file_links (folder_code, file_id)
+    SELECT ?2, tree.id FROM tree
+    WHERE tree.id <> ?1 AND NOT EXISTS (
+      SELECT 1 FROM folder_file_links WHERE folder_code = ?2 AND file_id = tree.id
+    )`).bind(rootId, code);
+  const treeQuery = db.prepare(`${tree}
+    SELECT tree.id, tree.parent_id, tree.name, coalesce(link.code, ?2) AS folder_code
+    FROM tree LEFT JOIN folder_file_links link ON link.folder_code = ?2 AND link.file_id = tree.id
+    ORDER BY tree.name COLLATE NOCASE, tree.id`).bind(rootId, code);
+  const [[, { results }, { results: folders }], { maxUploadMiB }] = await Promise.all([
+    db.batch([createFolderLinks, entriesQuery, treeQuery]),
     getConfig(env)
   ]);
-  const entries = await addFolderFileCodes(db, results.slice(0, 50), code);
-  return json({ name: folder.name, parent: folder.parent_id ?? null, root: id === root.id,
-    entries, folders, rootId: root.id, hasMore: results.length > 50, maxUploadMiB });
+  const entries = await addFolderEntryCodes(db, results.slice(0, 50), code);
+  return json({ id, name: folder.name, parent: folder.parent_id ?? null, root: id === rootId,
+    entries, folders, rootId, hasMore: results.length > 50, maxUploadMiB });
 }
 
 async function activeShortShare(db, code) {
@@ -576,11 +599,13 @@ async function activeShortShare(db, code) {
   return item;
 }
 
-async function activeFolderFile(db, code) {
-  const item = await db.prepare(`SELECT link.folder_code, item.id, item.name, item.mime
+async function activeFolderEntry(db, code) {
+  const item = await db.prepare(`SELECT link.folder_code, root.id AS root_id,
+      item.id, item.parent_id, item.kind, item.name, item.mime
     FROM folder_file_links link JOIN entries item ON item.id = link.file_id
-    WHERE link.code = ?1 AND item.kind = 'file' AND item.deleted_at IS NULL
-    AND ${inboxContains("item.parent_id", "link.folder_code")}`).bind(code).first();
+    JOIN entries root ON root.share_code = link.folder_code
+    WHERE link.code = ?1 AND item.deleted_at IS NULL
+    AND ${inboxContains("CASE WHEN item.kind = 'folder' THEN item.id ELSE item.parent_id END", "link.folder_code")}`).bind(code).first();
   if (!item) throw new HttpError(404, "分享链接已失效");
   return item;
 }
@@ -629,11 +654,14 @@ async function handle(request, env) {
   if (pathname === "/api/external/upload" && method === "POST") return externalUpload(request, env, url);
   const shortShare = pathname.match(shortSharePath);
   if (shortShare && method === "GET") {
-    if (url.searchParams.has("file")) throw new HttpError(404, "分享链接已失效，请索取新的短链接");
+    if (url.searchParams.has("file") || url.searchParams.has("folder")) {
+      throw new HttpError(404, "分享链接已失效，请索取新的短链接");
+    }
     const code = shortShare[1];
     const db = await database(env);
     if (code.length === 18) {
-      const item = await activeFolderFile(db, code);
+      const item = await activeFolderEntry(db, code);
+      if (item.kind === "folder") return sharePage(env, url, "/inbox");
       if (previewType(item)) return sharePage(env, url, "/html-preview");
       return content(db, env, "id", item.id, false, item.folder_code);
     }
@@ -648,17 +676,20 @@ async function handle(request, env) {
     const code = sharedFile[1];
     const db = await database(env);
     if (code.length === 18) {
-      const item = await activeFolderFile(db, code);
+      const item = await activeFolderEntry(db, code);
+      if (item.kind !== "file") throw new HttpError(404, "文件不存在或链接已失效");
       return content(db, env, "id", item.id, false, item.folder_code);
     }
     return content(db, env, "share_code", code, false);
   }
-  const inbox = pathname.match(/^\/api\/inbox\/([a-zA-Z0-9_-]{12})$/);
+  const inbox = pathname.match(inboxPath);
   if (inbox && (method === "GET" || method === "POST")) {
+    if (url.searchParams.has("folder")) throw new HttpError(404, "分享链接已失效，请索取新的短链接");
+    const code = inbox[1];
     const db = await database(env);
-    const item = await activeShortShare(db, inbox[1]);
+    const item = code.length === 18 ? await activeFolderEntry(db, code) : await activeShortShare(db, code);
     if (item.kind !== "folder") throw new HttpError(404, "分享链接已失效");
-    return publicFolder(request, db, env, url, inbox[1], item);
+    return publicFolder(request, db, env, url, item.folder_code ?? code, item);
   }
   if (pathname.startsWith("/f/") || pathname.startsWith("/api/inbox/")) {
     throw new HttpError(404, "分享链接已失效，请索取新的短链接");
