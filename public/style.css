@@ -81,6 +81,7 @@ small, p { color: var(--muted); }
 .header-inner, main { width: min(100%, 1536px); margin-inline: auto; padding-inline: clamp(16px, 4vw, 48px); }
 .header-inner { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
 .header-actions { position: relative; flex: none; flex-wrap: nowrap; }
+.header-link { color: var(--accent-strong); font-size: 13px; white-space: nowrap; }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .brand p { font-size: 13px; margin-top: 3px; overflow-wrap: anywhere; }
 .brand-mark, .login-mark, .file-tile, .empty-mark {
@@ -401,7 +402,10 @@ button.mkdir-button, #search > .mkdir-button { display: grid; place-items: cente
 .inbox-grid li { min-width: 0; border-radius: 12px; padding: 5px 3px; text-align: center; }
 .inbox-grid li:hover, .inbox-grid li:focus-within { background: var(--row-hover); }
 .inbox-panel .inbox-tile { display: grid; justify-items: center; align-content: start; gap: 11px; width: 100%; min-height: 105px; border: 0; background: transparent; padding: 8px 5px 2px; color: var(--text); font-size: 13px; text-decoration: none; white-space: normal; overflow-wrap: anywhere; }
-#inbox-copy-share { position: fixed; z-index: 6; max-width: calc(100vw - 16px); box-shadow: var(--shadow); }
+.copy-share-menu { position: fixed; z-index: 6; max-width: calc(100vw - 16px); box-shadow: var(--shadow); }
+.public-home { max-width: none; margin: 0; }
+.public-home > :is(p, button) { margin-top: 12px; }
+#public-copy-status:empty { display: none; }
 .inbox-download { display: inline-block; margin: 4px 0; font-size: 12px; }
 .inbox-file-feedback:empty { display: none; }
 .inbox-file-feedback { color: var(--accent-strong); font-size: 12px; overflow-wrap: anywhere; }

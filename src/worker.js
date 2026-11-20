@@ -13,7 +13,7 @@ const shortSharePath = /^\/s\/([a-zA-Z0-9_-]{12}|[a-f0-9]{18})$/;
 const shareDownloadPath = /^\/api\/share\/([a-zA-Z0-9_-]{12}|[a-f0-9]{18})\/download$/;
 const inboxPath = /^\/api\/inbox\/([a-zA-Z0-9_-]{12}|[a-f0-9]{18})$/;
 
-function inboxContains(folder, code) {
+function hasSharedAncestor(folder, code) {
   return `EXISTS (
     WITH RECURSIVE ancestors(id, parent_id) AS (
       SELECT id, parent_id FROM entries WHERE id = ${folder} AND kind = 'folder' AND deleted_at IS NULL
@@ -21,7 +21,8 @@ function inboxContains(folder, code) {
       SELECT e.id, e.parent_id FROM entries e JOIN ancestors a ON e.id = a.parent_id
       WHERE e.kind = 'folder' AND e.deleted_at IS NULL
     )
-    SELECT 1 FROM ancestors JOIN entries USING (id) WHERE share_code = ${code} AND ${activeShare}
+    SELECT 1 FROM ancestors JOIN entries USING (id)
+    WHERE share_code ${code ? "= " + code : "IS NOT NULL"} AND ${activeShare}
   )`;
 }
 
@@ -308,7 +309,7 @@ async function createEntry(db, { parent, kind, name, mime = null, size = null, f
     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
     WHERE ?2 IS NULL OR EXISTS (
       SELECT 1 FROM entries WHERE id = ?2 AND kind = 'folder' AND deleted_at IS NULL
-      AND (?10 IS NULL OR ${inboxContains("?2", "?10")})
+      AND (?10 IS NULL OR ${hasSharedAncestor("?2", "?10")})
     )`)
     .bind(id, parent, kind, name, mime, size, fileId, messageId, chatId, inboxCode);
   if (inboxCode && kind === "folder") {
@@ -404,7 +405,7 @@ async function upload(request, db, env, { name, parent, inboxCode, maxUploadMiB 
 
 async function content(db, env, column, id, preview, inboxCode = null) {
   const expiry = column === "share_code" ? `AND ${activeShare}` : "";
-  const scope = inboxCode ? `AND ${inboxContains("item.parent_id", "?2")}` : "";
+  const scope = inboxCode ? `AND ${hasSharedAncestor("item.parent_id", "?2")}` : "";
   const item = await db.prepare(
     `SELECT name, mime, size, telegram_file_id FROM entries AS item
      WHERE ${column} = ?1 AND kind = 'file' AND deleted_at IS NULL ${expiry} ${scope}`
@@ -558,7 +559,7 @@ async function publicFolder(request, db, env, url, code, folder) {
   const order = entrySort.get(url.searchParams.get("sort")) ?? entrySort.get("created-desc");
   const filter = entryTypeFilter(url.searchParams.get("type"), 5);
   const entriesQuery = db.prepare(`SELECT id, kind, name, mime, size, created_at FROM entries
-    WHERE parent_id = ?1 AND deleted_at IS NULL AND ${inboxContains("?1", "?2")}
+    WHERE parent_id = ?1 AND deleted_at IS NULL AND ${hasSharedAncestor("?1", "?2")}
     AND (?4 = '' OR instr(lower(name), lower(?4)) > 0)
     AND ${filter.sql}
     ORDER BY kind DESC, ${order}, id LIMIT 51 OFFSET ?3`).bind(id, code, offset, query, ...filter.values);
@@ -592,6 +593,15 @@ async function publicFolder(request, db, env, url, code, folder) {
     entries, folders, rootId, hasMore: results.length > 50, maxUploadMiB });
 }
 
+async function publicShares(db, url) {
+  const offset = Math.max(0, Math.min(1000000, Number.parseInt(url.searchParams.get("offset"), 10) || 0));
+  const { results } = await db.prepare(`SELECT name, kind, mime, share_code FROM entries AS item
+    WHERE deleted_at IS NULL AND share_code IS NOT NULL AND ${activeShare}
+    AND NOT ${hasSharedAncestor("item.parent_id")}
+    ORDER BY kind DESC, name COLLATE NOCASE, id LIMIT 51 OFFSET ?`).bind(offset).all();
+  return json({ entries: results.slice(0, 50), hasMore: results.length > 50 });
+}
+
 async function activeShortShare(db, code) {
   const item = await db.prepare(`SELECT id, kind, name, mime FROM entries
     WHERE share_code = ? AND deleted_at IS NULL AND ${activeShare}`).bind(code).first();
@@ -605,7 +615,7 @@ async function activeFolderEntry(db, code) {
     FROM folder_file_links link JOIN entries item ON item.id = link.file_id
     JOIN entries root ON root.share_code = link.folder_code
     WHERE link.code = ?1 AND item.deleted_at IS NULL
-    AND ${inboxContains("CASE WHEN item.kind = 'folder' THEN item.id ELSE item.parent_id END", "link.folder_code")}`).bind(code).first();
+    AND ${hasSharedAncestor("CASE WHEN item.kind = 'folder' THEN item.id ELSE item.parent_id END", "link.folder_code")}`).bind(code).first();
   if (!item) throw new HttpError(404, "分享链接已失效");
   return item;
 }
@@ -650,6 +660,7 @@ async function handle(request, env) {
   const { pathname } = url;
   const { method } = request;
   if (pathname === "/api/config" && method === "GET") return json(await getConfig(env));
+  if (pathname === "/api/public-shares" && method === "GET") return publicShares(await database(env), url);
   if (pathname === "/api/health" && method === "GET") return json({ status: "ok" });
   if (pathname === "/api/external/upload" && method === "POST") return externalUpload(request, env, url);
   const shortShare = pathname.match(shortSharePath);

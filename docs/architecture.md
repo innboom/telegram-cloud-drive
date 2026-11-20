@@ -16,7 +16,8 @@ flowchart LR
 | 路径 | 职责 |
 | --- | --- |
 | `src/worker.js` | 鉴权、数据库初始化和迁移、文件管理、分享路由、Telegram 代理 |
-| `public/index.html`、`public/app.js` | 管理端 |
+| `public/index.html`、`public/home.js` | 公开分享首页 |
+| `public/admin.html`、`public/app.js` | 管理端 |
 | `public/inbox.html`、`public/inbox.js` | 公开目录、目录树、访客上传 |
 | `public/html-preview.js`、`public/media-types.js` | 浏览器预览及文件类型判断 |
 | `src/document-renderers.js`、`src/workbook-*.js` | 文档及工作簿渲染 |
@@ -55,6 +56,7 @@ KV 使用 `site:config` 保存 `title`、`description`、`maxUploadMiB` 和 `ext
 | 方式 | 路径 | 用途 |
 | --- | --- | --- |
 | GET | `/api/health` | 检查 Worker 是否响应 |
+| GET | `/api/public-shares?offset=<n>` | 列出首页可见的有效分享入口 |
 | GET / PUT | `/api/config` | 读取公开设置 / 管理员修改设置 |
 | GET | `/api/session` | 校验管理员密钥 |
 | GET | `/api/entries` | 管理端列表、搜索和分页 |
