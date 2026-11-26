@@ -81,7 +81,6 @@ small, p { color: var(--muted); }
 .header-inner, main { width: min(100%, 1536px); margin-inline: auto; padding-inline: clamp(16px, 4vw, 48px); }
 .header-inner { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
 .header-actions { position: relative; flex: none; flex-wrap: nowrap; }
-.header-link { color: var(--accent-strong); font-size: 13px; white-space: nowrap; }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .brand p { font-size: 13px; margin-top: 3px; overflow-wrap: anywhere; }
 .brand-mark, .login-mark, .file-tile, .empty-mark {
