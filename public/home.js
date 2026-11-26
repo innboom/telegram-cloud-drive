@@ -71,9 +71,5 @@ async function loadConfig() {
 }
 
 more.addEventListener("click", loadShares);
-if (location.hash === "#links") {
-  location.replace("/admin#links");
-} else {
-  void loadShares();
-  void loadConfig().catch(() => {});
-}
+void loadShares();
+void loadConfig().catch(() => {});
